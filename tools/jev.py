@@ -29,6 +29,7 @@ def ask(questions, state, timeout=30):
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.load(r)["answers"], f"Jev {MODEL}"
         except urllib.error.HTTPError as e:
+            e.close()  # release the connection; Python 3.14 warns about an unclosed error
             if e.code in (429, 529) and attempt < 2:
                 time.sleep(2 ** attempt)
                 continue

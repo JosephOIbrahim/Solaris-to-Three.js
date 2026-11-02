@@ -2,6 +2,12 @@
 
 All notable changes are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- The Jev client closes HTTP error responses before retrying or giving up. Python 3.14 warned about the unclosed connection, and a new test fails if one is left open.
+
 ## [0.1.0] - 2026-11-02
 
 The first release: the working prototype, organised into a repository.
@@ -28,4 +34,5 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.0

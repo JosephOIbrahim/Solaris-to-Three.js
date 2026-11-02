@@ -2,10 +2,12 @@
 
     python -m unittest discover -s tests -v
 """
+import gc
 import json
 import os
 import sys
 import unittest
+import warnings
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -83,6 +85,17 @@ class RouterTest(unittest.TestCase):
             rows, _note = build_router.route(PLAN)
         self.assertEqual(len(stub.requests), 2)
         self.assertFalse(any(r.get("guess") for r in rows))
+
+
+    def test_http_errors_are_closed(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", ResourceWarning)
+            with JevStub(stub_decider(), fail_first=429) as stub:
+                jev.URL, os.environ["TYPESAFE_API_KEY"] = stub.url, "test-key"
+                build_router.route(PLAN)
+            gc.collect()
+        leaks = [w for w in caught if issubclass(w.category, ResourceWarning) and "HTTPError" in str(w.message)]
+        self.assertEqual(leaks, [])
 
 
 if __name__ == "__main__":
