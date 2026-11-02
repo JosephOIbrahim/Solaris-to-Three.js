@@ -1,0 +1,28 @@
+{
+  "name": "solaris-to-three",
+  "version": "0.1.0",
+  "description": "Publish Houdini Solaris USD stages to the web: OpenUSD in WebAssembly, rendered by three.js r187.",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server/serve.mjs",
+    "test": "npm run test:syntax && npm run test:py",
+    "test:syntax": "node --check server/serve.mjs && node --check viewer/main.js && node --check tests/browser/smoke.mjs && node --check tests/browser/shots.mjs",
+    "test:py": "python -m unittest discover -s tests -v",
+    "test:browser": "node tests/browser/smoke.mjs",
+    "route": "python tools/build_router.py plan/tasks.json --check plan/tasks.expected.json",
+    "fixtures": "python tools/make_stage.py && python tools/make_dirty_stage.py"
+  },
+  "dependencies": {
+    "@needle-tools/usd": "1.1.2",
+    "three": "0.187.0",
+    "three-r185": "npm:three@0.185.1"
+  },
+  "overrides": {
+    "@needle-tools/materialx": "1.8.0"
+  }
+}
