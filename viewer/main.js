@@ -258,6 +258,7 @@ async function toggleProxy() {
   showProxy = !showProxy;
   await hydra.setIncludedPurposes(showProxy ? ["default", "render", "proxy"] : ["default", "render"]);
   applyBridge();
+  applyPurposes(); // now, not at the next frame: on slow GPUs a frame can be seconds away
   press("proxy", showProxy);
 }
 document.getElementById("proxy").onclick = toggleProxy;
@@ -287,6 +288,7 @@ async function selectVariant(vs, opt) {
   await hydra.materialsReady();
   } finally { holdFrames = false; }
   applyBridge();
+  applyPurposes();
   vs.selected = opt;
   for (const b of variantRow.querySelectorAll(`button[data-set="${vs.set}"]`)) b.setAttribute("aria-pressed", String(b.textContent === opt));
   report.lastVariantSwitch = { set: vs.set, option: opt, ms: Math.round(performance.now() - t) };
