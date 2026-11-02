@@ -17,6 +17,7 @@ The first release: the working prototype, organised into a repository.
 - **Fixtures.** A Solaris-shaped test stage, its flattened `.usdz`, and a dirty stage with eight planted problems.
 - **Tests.** Python unit tests for the census and router against a local Jev stand-in, syntax checks, and a headless Chromium smoke test with pass/fail checks.
 - **CI.** Unit tests and syntax checks on every push and pull request; the browser test on demand.
+- **Licence.** MIT for this repo's own code. Needle's packages keep their PolyForm Noncommercial licence.
 - **Docs.** Architecture, versions, lighting, gotchas, and operator's cards for the census and router.
 
 ### Fixed during the prototype

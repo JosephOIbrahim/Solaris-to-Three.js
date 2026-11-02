@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Publish Houdini Solaris USD stages to the web: OpenUSD in WebAssembly, rendered by three.js r187.",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=22"
