@@ -1,0 +1,17 @@
+# Text files are stored with LF; Windows checkouts convert as configured.
+* text=auto eol=lf
+
+# Binary assets: never touch line endings, never diff as text.
+*.usdc   binary
+*.usdz   binary
+*.hdr    binary
+*.exr    binary
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.tga    binary
+*.rat    binary
+*.wasm   binary
+
+# .usda is text USD: diff it like code.
+*.usda   text eol=lf diff

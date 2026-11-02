@@ -1,0 +1,6 @@
+{
+  "_note": "Claude's own labels for the 16 seed tasks, written before any Jev run. Use with build_router.py --check to see how often Jev agrees. These are a starting yardstick, not ground truth.",
+  "T01": "desk", "T02": "desk", "T03": "desk", "T04": "decision", "T05": "decision", "T06": "decision",
+  "T07": "cloud", "T08": "cloud", "T09": "cloud", "T10": "cloud", "T11": "cloud", "T12": "cloud",
+  "T13": "desk", "T14": "desk", "T15": "cloud", "T16": "desk"
+}

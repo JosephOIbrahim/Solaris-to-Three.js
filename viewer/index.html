@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Solaris → three.js r187 · Hydra in the browser</title>
+  <style>
+    :root { color-scheme: dark; --ink: #e8e6e1; --dim: #8d8a84; --line: #2a2926; --bg: #0d0d0c; --accent: #e0a458; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+      font: 13px/1.45 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+    #hud { position: fixed; left: 12px; top: 12px; max-width: min(360px, calc(100vw - 24px));
+      background: rgba(13,13,12,.82); border: 1px solid var(--line); border-radius: 10px;
+      padding: 10px 12px; backdrop-filter: blur(6px); }
+    #hud h1 { font: 600 13px/1.2 inherit; margin: 0 0 6px; letter-spacing: .02em; }
+    #hud .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+    #hud .label { color: var(--dim); min-width: 64px; }
+    button { font: inherit; color: var(--ink); background: #1a1917; border: 1px solid var(--line);
+      border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+    button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+    button:disabled { opacity: .4; cursor: default; }
+    #status { position: fixed; left: 12px; bottom: 12px; right: 12px; color: var(--dim);
+      white-space: pre-wrap; pointer-events: none; text-shadow: 0 1px 2px #000; }
+  </style>
+  <!-- No bundler: the import map is the whole module graph.
+       Default: three r187. ?three=185 runs the same page on r185 for comparison. -->
+  <script>
+    (() => {
+      const ver = new URLSearchParams(location.search).get("three") === "185" ? "185" : "187";
+      const three = ver === "185" ? "/vendor/three-r185" : "/vendor/three";
+      const map = {
+        imports: {
+          "three": `${three}/build/three.module.js`,
+          "three/addons/": `${three}/examples/jsm/`,
+          "three/examples/jsm/": `${three}/examples/jsm/`,
+          // package.json overrides this to 1.8.0: the 1.7.3 that @needle-tools/usd pins can't load on r186+
+          "@needle-tools/materialx": "/vendor/@needle-tools/materialx/index.js",
+          "@needle-tools/usd": "/vendor/@needle-tools/usd/src/index.js",
+          "@needle-tools/usd/three": "/vendor/@needle-tools/usd/src/create.three.js"
+        }
+      };
+      const s = document.createElement("script");
+      s.type = "importmap";
+      s.textContent = JSON.stringify(map);
+      document.currentScript.after(s);
+      window.__threeVariant = ver;
+    })();
+  </script>
+</head>
+<body>
+  <div id="hud">
+    <h1>Solaris stage · three.js r187</h1>
+    <div class="row"><span class="label">route</span>
+      <button id="route-hydra" aria-pressed="true">Hydra (WASM)</button>
+      <button id="route-js" aria-pressed="false">USDLoader (JS)</button></div>
+    <div class="row"><span class="label">camera</span>
+      <button id="cam-usd" aria-pressed="true">USD cam</button>
+      <button id="cam-orbit" aria-pressed="false">orbit</button></div>
+    <div class="row" id="variants"><span class="label">variant</span></div>
+    <div class="row"><span class="label">purpose</span>
+      <button id="proxy" aria-pressed="false">show proxy</button>
+      <span class="label">time</span>
+      <button id="play" aria-pressed="true">pause</button></div>
+  </div>
+  <div id="status">loading…</div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

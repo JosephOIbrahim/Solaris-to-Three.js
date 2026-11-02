@@ -1,0 +1,26 @@
+{
+  "plan": "Solaris-web-Hydra: from prototype to product (four upgrades borrowed from Synapse)",
+  "environment": {
+    "cloud": "An AI coding agent in a cloud Linux container with Python, Node, usd-core and headless Chromium with software rendering. No Houdini, no GPU, no Windows, no access to Joe's files, accounts or email.",
+    "desk": "Joe's Windows workstation: Houdini 22 and hython, Karma, an RTX 4090, his real Solaris scenes and exports, his phone, his GitHub and email accounts. Available on weekday afternoons only.",
+    "joe": "A senior lighting TD and solo developer who owns every product, licensing, money and taste decision."
+  },
+  "tasks": [
+    {"id": "T01", "title": "Put the prototype in a private GitHub repo", "detail": "Create JosephOIbrahim/solaris-web-hydra as a private repository under Joe's GitHub account and push the prototype from the zip into it."},
+    {"id": "T02", "title": "First run on the 4090", "detail": "Run npm install and npm start on Joe's workstation, open the viewer in Chrome, and read the status line for revision, cross-origin isolation and fallback count."},
+    {"id": "T03", "title": "Census one real export", "detail": "Export one real asset from a Solaris scene with the USD ROP using relative paths, then run web_census.py on it with hython."},
+    {"id": "T04", "title": "Define 'looks right' for the first real scene", "detail": "Write down what counts as done when comparing the web render with the Karma render, so the first real scene has a finish line."},
+    {"id": "T05", "title": "Pick reload-on-cook or live edits", "detail": "Choose whether the live viewport reloads the whole stage when the LOP network cooks, or pushes individual edits live."},
+    {"id": "T06", "title": "Email Needle about commercial terms", "detail": "Write to hi@needle.tools in Joe's name to ask for commercial licence terms and whether @needle-tools/usd will move to MaterialX 1.8.0."},
+    {"id": "T07", "title": "Add a lockfile and Playwright", "detail": "Generate package-lock.json and add Playwright as a dev dependency so tests run from a fresh install."},
+    {"id": "T08", "title": "Shadows for every key light", "detail": "The lighting bridge in site/main.js only gives shadows to a light whose path ends in /key. Choose shadow casters from the lights' own attributes instead."},
+    {"id": "T09", "title": "Read .exr dome textures", "detail": "The lighting bridge loads dome textures with HDRLoader only. Add EXRLoader for .exr domes and test it on a fixture."},
+    {"id": "T10", "title": "Cache the WASM", "detail": "serve.mjs sends Cache-Control no-store, so each reload refetches the 35 MB WASM. Cache static vendor files and keep stage files fresh."},
+    {"id": "T11", "title": "Learn the census allowlist from a real export", "detail": "Read the JSON from the census of Joe's real export and update the tested shader and texture lists in web_census.py.", "after": ["T03"]},
+    {"id": "T12", "title": "Write the look-score script", "detail": "Use Retina's SSIM from the Synapse repo to compare each web screenshot with the last approved frame, driven by the existing Playwright test."},
+    {"id": "T13", "title": "Set the SSIM floor on the 4090", "detail": "Render the same view twice on Joe's GPU and measure SSIM between the runs, to set a floor real hardware can pass.", "after": ["T12"]},
+    {"id": "T14", "title": "Ping Synapse from a 10-line client", "detail": "Open Synapse's WebSocket from a small script on Joe's machine with Houdini running, send ping, then call the Solaris component builder."},
+    {"id": "T15", "title": "Watch-and-reload in serve.mjs", "detail": "Add a file watcher and server-sent events to serve.mjs so the browser reloads the stage when a marker file changes."},
+    {"id": "T16", "title": "Post-render hook on the USD ROP", "detail": "In Houdini, add a post-render script to the USD ROP that touches the marker file after each export, and confirm the browser reloads.", "after": ["T15"]}
+  ]
+}
