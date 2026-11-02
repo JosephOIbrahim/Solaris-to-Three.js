@@ -77,7 +77,7 @@ report.stage = meta;
 // Read the composed stage through the real USD API (this is usdview-grade data).
 async function readStage() {
   return hydra.editStage((stage) => {
-    const lights = [], variantSets = [];
+    const lights = [], variantSets = [], purposeRoots = [];
     const prims = stage.Traverse();
     for (let i = 0; i < prims.size(); i++) {
       const prim = prims.get(i);
@@ -90,6 +90,11 @@ async function readStage() {
           width: v("inputs:width"), height: v("inputs:height"), radius: v("inputs:radius"),
           angle: v("inputs:angle"), normalize: v("inputs:normalize"), texture: v("inputs:texture:file") });
       }
+      const purpose = prim.GetAttribute("purpose");
+      if (purpose?.IsValid?.() && purpose.HasAuthoredValue()) {
+        const p = purpose.GetValueString();
+        if (p === "proxy" || p === "guide") purposeRoots.push({ path, purpose: p });
+      }
       const names = prim.GetVariantSetNames();
       for (let j = 0; j < names.size(); j++) {
         const set = names.get(j);
@@ -98,7 +103,7 @@ async function readStage() {
         variantSets.push({ path, set, options: list, selected: prim.GetVariantSelection(set) });
       }
     }
-    return { lights, variantSets };
+    return { lights, variantSets, purposeRoots };
   });
 }
 const composed = await readStage();
@@ -228,6 +233,27 @@ document.getElementById("cam-usd").onclick = () => setCamMode(true);
 document.getElementById("cam-orbit").onclick = () => setCamMode(false);
 
 let showProxy = false;
+// Needle's delegate (usd 1.1.2) never hides a proxy mesh once it has been drawn, and it re-applies its
+// own visibility on every sync, so setting .visible doesn't stick. Purpose is enforced with three.js
+// layers instead, which the delegate never touches: proxy and guide meshes sit on their own layers,
+// and the camera sees the proxy layer only while "show proxy" is on. It runs every frame, so meshes
+// the delegate creates or replaces later are covered too.
+const LAYER_PROXY = 1, LAYER_GUIDE = 2;
+function purposeOf(o) {
+  const tag = o.userData.usdRenderTag;
+  if (tag === "proxy" || tag === "guide") return tag;
+  const path = o.userData.usdPath || "";
+  return composed.purposeRoots.find((r) => path === r.path || path.startsWith(r.path + "/"))?.purpose;
+}
+function applyPurposes() {
+  hydraRoot.traverse((o) => {
+    if (!o.isMesh) return;
+    const p = purposeOf(o);
+    o.layers.set(p === "proxy" ? LAYER_PROXY : p === "guide" ? LAYER_GUIDE : 0);
+  });
+  camera.layers.set(0);
+  if (showProxy) camera.layers.enable(LAYER_PROXY);
+}
 async function toggleProxy() {
   showProxy = !showProxy;
   await hydra.setIncludedPurposes(showProxy ? ["default", "render", "proxy"] : ["default", "render"]);
@@ -273,7 +299,7 @@ function inventory() {
   const inv = { meshes: 0, instanced: 0, materials: {}, lights: 0, cameras: 0 };
   hydraRoot.traverse((o) => {
     if (o.isInstancedMesh) inv.instanced += o.count;
-    else if (o.isMesh && o.visible) inv.meshes++;
+    else if (o.isMesh && o.visible && o.layers.test(camera.layers)) inv.meshes++; // what the camera can draw
     if (o.isMesh) {
       const m = Array.isArray(o.material) ? o.material[0] : o.material;
       const key = `${o.userData.usdPath?.split("/").pop()}:${m?.type}${m?.name ? `(${m.name})` : ""}`;
@@ -308,6 +334,7 @@ renderer.setAnimationLoop((now) => {
   if (holdFrames) return;
   syncCamera();
   if (controls.enabled) controls.update();
+  applyPurposes();
   renderer.render(scene, camera);
   report.frame = hydra.getTime();
   report.frameMs = Math.round(0.9 * (report.frameMs ?? dt * 1000) + 0.1 * dt * 1000);

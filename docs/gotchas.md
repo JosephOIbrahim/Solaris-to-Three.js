@@ -34,6 +34,10 @@ This is the version trap in [versions.md](versions.md). Check the `overrides` bl
 
 The Hydra route respects `purpose` and hides proxy and guide prims by default. three.js's own `USDLoader` ignores `purpose` and shows everything. The census mentions this when a stage has proxies.
 
+## Proxies stay visible after turning them off
+
+Needle's delegate (`@needle-tools/usd` 1.1.2) shows proxy prims when `proxy` is added to the included purposes, but leaves them on screen when it is removed: a mesh's visibility depends only on the prim's own visibility and its materials, and the delegate re-applies it on every sync, so setting `.visible` from outside doesn't stick. The viewer puts proxy and guide meshes on their own three.js layers, which the delegate never touches, and lets the camera see the proxy layer only while "show proxy" is on. If a later delegate release fixes this, the workaround is harmless; remove it then.
+
 ## Paths in scripts break on Windows
 
 `new URL(...).pathname` gives `/C:/...` on Windows, which Node can't open. The scripts use `fileURLToPath` instead. Keep it that way in anything new.

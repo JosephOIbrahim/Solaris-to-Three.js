@@ -35,10 +35,15 @@ for (const v of ["gold", "chrome"]) {
   await shot(page, `02-hydra-${v}`);
 }
 await page.evaluate(() => window.__app.selectVariant("ember"));
+const meshes = () => page.evaluate(() => window.__inventory().meshes);
+const meshesBefore = await meshes();
 await page.evaluate(() => window.__app.setProxy());
 await page.waitForTimeout(1500);
+const meshesProxyOn = await meshes();
 await shot(page, "03-hydra-proxy-on");
 await page.evaluate(() => window.__app.setProxy());
+await page.waitForTimeout(1500);
+const meshesProxyOff = await meshes();
 await page.evaluate(() => window.__app.setCamMode(false));
 await page.waitForTimeout(800);
 await shot(page, "04-hydra-orbit");
@@ -68,6 +73,8 @@ const checks = [
   ["USD camera found", !!report.usdCamera],
   ["dome light became the environment", !!report.env],
   ["variant switch applied", report.lastVariantSwitch?.option === "ember"],
+  [`proxy shows, then hides again (${meshesBefore} -> ${meshesProxyOn} -> ${meshesProxyOff} meshes)`,
+    meshesProxyOn > meshesBefore && meshesProxyOff === meshesBefore],
   ["USDLoader route loaded meshes", report.jsRoute?.meshes > 0],
 ];
 console.log("---- checks ----");
