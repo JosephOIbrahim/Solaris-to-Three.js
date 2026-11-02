@@ -4,6 +4,11 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+### Added
+
+- `tools/release.py` creates the GitHub release for the version in `package.json`, and refuses unless the tree is clean, local `main` matches GitHub, the changelog has notes for the version and CI passed on that commit.
+- `docs/workflow.md`, the operator's card for changing, pushing and releasing from the workstation.
+
 ### Fixed
 
 - The Jev client closes HTTP error responses before retrying or giving up. Python 3.14 warned about the unclosed connection, and a new test fails if one is left open.

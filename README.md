@@ -61,6 +61,7 @@ The server matters more than it looks. The OpenUSD build is threaded and needs `
 |---|---|---|
 | `tools/web_census.py` | Can this export go to the web? | `pxr`: hython, or `pip install usd-core` |
 | `tools/build_router.py` | Which build tasks run in a cloud agent, at the desk, or as Joe's decision? See [docs/router.md](docs/router.md). | Python 3 |
+| `tools/release.py` | Is this version ready to release? It checks, then creates the GitHub release. The loop is in [docs/workflow.md](docs/workflow.md). | Python 3, git, a signed-in `gh` |
 | `tools/jev.py` | The shared door to TypeSafe's Jev, used by both tools above. Standard library only; fails open. | Python 3 |
 | `tools/make_stage.py` | Rebuilds the Solaris-shaped fixture stage | `pxr`, `numpy` |
 | `tools/make_dirty_stage.py` | Rebuilds the fixture with eight planted problems | `pxr` |
