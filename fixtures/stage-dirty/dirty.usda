@@ -1,0 +1,193 @@
+#usda 1.0
+(
+    defaultPrim = "scene"
+    upAxis = "Y"
+)
+
+def Xform "scene"
+{
+    def "mtl"
+    {
+        def Material "good"
+        {
+            token outputs:mtlx:surface.connect = </scene/mtl/good/surf.outputs:out>
+
+            def Shader "surf"
+            {
+                uniform token info:id = "ND_standard_surface_surfaceshader"
+                token outputs:out
+            }
+
+            def Shader "img"
+            {
+                uniform token info:id = "ND_image_color3"
+                asset inputs:file = @./tex/ok.png@
+            }
+        }
+
+        def Material "rat"
+        {
+            token outputs:mtlx:surface.connect = </scene/mtl/rat/surf.outputs:out>
+
+            def Shader "surf"
+            {
+                uniform token info:id = "ND_standard_surface_surfaceshader"
+                token outputs:out
+            }
+
+            def Shader "img"
+            {
+                uniform token info:id = "ND_image_color3"
+                asset inputs:file = @./tex/rust.rat@
+            }
+        }
+
+        def Material "abs"
+        {
+            token outputs:mtlx:surface.connect = </scene/mtl/abs/surf.outputs:out>
+
+            def Shader "surf"
+            {
+                uniform token info:id = "ND_standard_surface_surfaceshader"
+                token outputs:out
+            }
+
+            def Shader "img"
+            {
+                uniform token info:id = "ND_image_color3"
+                asset inputs:file = @D:/textures/wood.png@
+            }
+        }
+
+        def Material "udim"
+        {
+            token outputs:mtlx:surface.connect = </scene/mtl/udim/surf.outputs:out>
+
+            def Shader "surf"
+            {
+                uniform token info:id = "ND_standard_surface_surfaceshader"
+                token outputs:out
+            }
+
+            def Shader "img"
+            {
+                uniform token info:id = "ND_image_color3"
+                asset inputs:file = @./tex/skin.<UDIM>.exr@
+            }
+        }
+
+        def Material "karma"
+        {
+            token outputs:mtlx:surface.connect = </scene/mtl/karma/surf.outputs:out>
+
+            def Shader "surf"
+            {
+                uniform token info:id = "ND_standard_surface_surfaceshader"
+                token outputs:out
+            }
+
+            def Shader "extra"
+            {
+                uniform token info:id = "kma_fixture_node"
+                string inputs:ray_types = "all"
+            }
+        }
+    }
+
+    def "geo"
+    {
+        def Mesh "good" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            rel material:binding = </scene/mtl/good>
+            point3f[] points = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)]
+            texCoord2f[] primvars:st = [(0, 0), (1, 0), (1, 1), (0, 1)] (
+                interpolation = "vertex"
+            )
+        }
+
+        def Mesh "rat" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            rel material:binding = </scene/mtl/rat>
+            point3f[] points = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)]
+            texCoord2f[] primvars:st = [(0, 0), (1, 0), (1, 1), (0, 1)] (
+                interpolation = "vertex"
+            )
+        }
+
+        def Mesh "abs" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            rel material:binding = </scene/mtl/abs>
+            point3f[] points = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)]
+            texCoord2f[] primvars:st = [(0, 0), (1, 0), (1, 1), (0, 1)] (
+                interpolation = "vertex"
+            )
+        }
+
+        def Mesh "udim" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            rel material:binding = </scene/mtl/udim>
+            point3f[] points = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)]
+            texCoord2f[] primvars:st = [(0, 0), (1, 0), (1, 1), (0, 1)] (
+                interpolation = "vertex"
+            )
+        }
+
+        def Mesh "nouv" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            rel material:binding = </scene/mtl/good>
+            point3f[] points = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)]
+        }
+
+        def Mesh "karma" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            rel material:binding = </scene/mtl/karma>
+            point3f[] points = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)]
+            texCoord2f[] primvars:st = [(0, 0), (1, 0), (1, 1), (0, 1)] (
+                interpolation = "vertex"
+            )
+        }
+    }
+
+    def "lights"
+    {
+        def CylinderLight "tube"
+        {
+        }
+
+        def DomeLight "dome"
+        {
+            asset inputs:texture:file = @./tex/sky.exr@
+        }
+    }
+
+    def "missing" (
+        prepend references = @./nowhere.usd@
+    )
+    {
+    }
+}
+

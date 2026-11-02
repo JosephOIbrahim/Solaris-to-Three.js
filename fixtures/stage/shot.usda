@@ -1,0 +1,62 @@
+#usda 1.0
+(
+    defaultPrim = "hero"
+    endTimeCode = 120
+    framesPerSecond = 24
+    metersPerUnit = 1
+    startTimeCode = 1
+    timeCodesPerSecond = 24
+    upAxis = "Y"
+)
+
+def Xform "hero" (
+    prepend payload = @./hero/asset.usda@
+)
+{
+}
+
+def Scope "cameras"
+{
+    def Camera "render_cam"
+    {
+        float2 clippingRange = (0.05, 200)
+        float focalLength = 35
+        float horizontalAperture = 36
+        float verticalAperture = 20.25
+        matrix4d xformOp:transform = ( (0.8496401661981191, 0, -0.527362861778143, 0), (-0.11677022631370776, 0.9751778756664484, -0.18812980906097362, 0), (0.5142725952541882, 0.22142292295666435, 0.8285502923539699, -0), (3.600000000000001, 2.4000000000000004, 5.800000000000001, 1) )
+        uniform token[] xformOpOrder = ["xformOp:transform"]
+    }
+}
+
+def Scope "lights"
+{
+    def DomeLight "dome"
+    {
+        float inputs:exposure = 0
+        float inputs:intensity = 1
+        asset inputs:texture:file = @./env/sky.hdr@
+        token inputs:texture:format = "latlong"
+    }
+
+    def RectLight "key"
+    {
+        color3f inputs:color = (1, 0.86, 0.7)
+        float inputs:exposure = 2
+        float inputs:height = 2
+        float inputs:intensity = 20
+        float inputs:width = 2
+        matrix4d xformOp:transform = ( (0.6507913734559686, 2.7755575615628914e-17, 0.7592566023652966, -0), (0.43296443658943157, 0.8214727033504841, -0.3711123742195128, 0), (-0.6237085736817237, 0.5702478387947189, 0.5346073488700489, 0), (-3.5, 4, 3, 1) )
+        uniform token[] xformOpOrder = ["xformOp:transform"]
+    }
+
+    def SphereLight "rim"
+    {
+        color3f inputs:color = (0.6, 0.75, 1)
+        float inputs:exposure = 1
+        float inputs:intensity = 30
+        float inputs:radius = 0.25
+        double3 xformOp:translate = (2.5, 2.5, -3)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+}
+
