@@ -4,6 +4,8 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-02
+
 ### Fixed
 
 - Turning off "show proxy" now hides proxy prims again. Needle's delegate shows them when the proxy purpose is included but never hides them when it is removed, so the viewer now enforces purpose with three.js layers, which the delegate never touches. The browser test now checks that the proxy shows and then hides. Found in the first run on the RTX 4090 (T02).
@@ -46,6 +48,7 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.2
 [0.1.1]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.1
 [0.1.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.0
