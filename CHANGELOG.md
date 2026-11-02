@@ -7,6 +7,7 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 ### Fixed
 
 - Turning off "show proxy" now hides proxy prims again. Needle's delegate shows them when the proxy purpose is included but never hides them when it is removed, so the viewer now enforces purpose with three.js layers, which the delegate never touches. The browser test now checks that the proxy shows and then hides. Found in the first run on the RTX 4090 (T02).
+- A push to `main` no longer cancels an on-demand browser test run in CI.
 
 ## [0.1.1] - 2026-11-02
 
