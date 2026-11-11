@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="64" height="64">
+  <title>Solaris to three.js</title>
+  <!-- Built on a 16-unit grid, so it is pixel-exact at 16 px. For ink #1C1B19. -->
+  <!-- The stage, lit: a sun on the horizon. The one vermilion element. -->
+  <path d="M1 8a7 7 0 0 1 14 0z" fill="#E25B3F"/>
+  <!-- three.js drawing it: three scanlines that complete the circle. 1 px hairlines at every size. -->
+  <path d="M1.1626 9.5H14.8374M1.9378 11.5H14.0622M3.6699 13.5H12.3301" fill="none" stroke="#DAD6CF" stroke-width="1" vector-effect="non-scaling-stroke" shape-rendering="crispEdges"/>
+</svg>
