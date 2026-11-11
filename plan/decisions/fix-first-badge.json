@@ -1,0 +1,25 @@
+{
+  "id": "fix-first-badge",
+  "decision": "How should the Web Export HDA show a FIX FIRST verdict on the asset node itself?",
+  "constraints": {
+    "principle_5": "Structure out, never prose: the verdict is data first; the node message is one rendering of it.",
+    "principle_9": "Fail open, fail loud: a blocking verdict must be visible, never silent.",
+    "cook_only": "hou addError and addWarning only work on a node that is currently cooking, so a button callback cannot badge the asset directly.",
+    "one_asset": "The asset must stay one node in the network, with the badge inside its contents."
+  },
+  "evidence": [
+    "Probe on 22.0.400: an in-chain Error LOP listed in MessageNodes, at warn severity, showed its text in the asset's warnings after cook.",
+    "Probe on 22.0.400: an error-severity Error LOP with a message produced no asset error and no inner error, and stage() still returned a stage.",
+    "Probe on 22.0.400: a MessageNodes-listed badge that sits off the cook chain never cooks, so it can never report.",
+    "The M5 API brief records addError/addWarning as cook-only, and recommends routing the verdict through hidden parms into an in-chain node."
+  ],
+  "options": {
+    "error_with_channel": "Keep the in-chain Error LOP, and drive its enable and severity parms by channel reference from the asset's hidden verdict parms, so the error is authored by the cook rather than by the callback.",
+    "python_script_raise": "Replace the Error LOP with an in-chain Python Script LOP that reads the hidden verdict parms and raises hou.NodeError for FIX FIRST, which is the documented way to fail a cook with a clean message.",
+    "warning_only": "Use the Error LOP at warn severity, which the probe proved works, and let the report text carry the FIX FIRST wording."
+  },
+  "checks": {
+    "error_severity_failed": "Does the evidence show that setting an Error LOP to error severity did not produce an asset error?",
+    "offchain_failed": "Does the evidence show that a MessageNodes node off the cook chain never reports?"
+  }
+}

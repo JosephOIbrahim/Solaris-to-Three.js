@@ -1,0 +1,66 @@
+{
+ "plan": "Close the Web Export development loop: finish the HDA, prove it on three Houdini builds, merge, push and release 0.2.0. W1 (install) and W2 (hython import) passed on 2026-11-11.",
+ "environment": {
+  "cloud": "An AI coding agent in a git worktree with py -3.12 (usd-core 26.5) and Node 24. It must not run Houdini or hython, write Houdini's prefs, or act in Joe's GitHub account.",
+  "desk": "Joe's Windows workstation: Houdini 22.0.400/.429/.466/.492 with hython, the OneDrive houdini22.0 prefs folder, and the gh CLI. Joe approved the install, --verify, the hython import check, and building and testing the HDA on .400/.492/.466.",
+  "joe": "Joe Ibrahim, owner of every product and release decision."
+ },
+ "tasks": [
+  {
+   "id": "C1",
+   "title": "Write build_hda.py and hou_node.py",
+   "detail": "Build houdini/otls/web_export.hda with hython 22.0.400: a LOP subnet HDA mythandlogic::web_export::1.0, min_num_inputs 1, seven web settings, Check/Export/Preview buttons calling webexport.hou_node, badge in the cook chain."
+  },
+  {
+   "id": "C2",
+   "title": "Export an in-memory LOP stage",
+   "detail": "Make webexport.api.export flatten an anonymous LOP root, strip /HoudiniLayerInfo, stage it to a file and hand it to the USD-folder writer; usd-core tests only."
+  },
+  {
+   "id": "C3",
+   "title": "Test the HDA on three builds",
+   "detail": "tests/hou/test_hda.py under hython 22.0.400, .492 and .466: install, load fixtures/stage/shot.usda through a Sublayer LOP, press Check (GO) and Export (folder exists, census GO).",
+   "after": [
+    "C1"
+   ]
+  },
+  {
+   "id": "C4",
+   "title": "Check the Preview button",
+   "detail": "Does a button callback start node server/serve.mjs on Windows and keep Houdini responsive? Record it in blueprint section 6 item 1.",
+   "after": [
+    "C1"
+   ]
+  },
+  {
+   "id": "C5",
+   "title": "Write the operator's card and README rows",
+   "detail": "docs/web-export.md plus the README tools table and repo map, describing install, the three buttons, the report and batch use.",
+   "after": [
+    "C3"
+   ]
+  },
+  {
+   "id": "C6",
+   "title": "Merge, test and push wave 2",
+   "detail": "Merge every lane onto main, run npm test, the Python tests, the browser test and the hython HDA test, push, and watch CI.",
+   "after": [
+    "C3",
+    "C5"
+   ]
+  },
+  {
+   "id": "C7",
+   "title": "Release 0.2.0",
+   "detail": "Bump to 0.2.0, roll the changelog, push, wait for CI, and create the GitHub release with tools/release.py.",
+   "after": [
+    "C6"
+   ]
+  },
+  {
+   "id": "C8",
+   "title": "Upload the social preview",
+   "detail": "Joe uploads docs/assets/social-preview.png in the repository Settings."
+  }
+ ]
+}

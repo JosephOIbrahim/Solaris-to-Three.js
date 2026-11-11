@@ -1,0 +1,120 @@
+{
+  "note": "Jev jev-latest",
+  "routes": [
+    {
+      "id": "C1",
+      "title": "Write build_hda.py and hou_node.py",
+      "after": [],
+      "jev_where": "desk",
+      "where_conf": 0.68,
+      "scaffold": "?",
+      "effort": 2.43,
+      "effort_conf": 0.49,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "C2",
+      "title": "Export an in-memory LOP stage",
+      "after": [],
+      "jev_where": "cloud",
+      "where_conf": 0.97,
+      "scaffold": "?",
+      "effort": 1.69,
+      "effort_conf": 0.53,
+      "unsure": false,
+      "lane": "cloud",
+      "model": "opus"
+    },
+    {
+      "id": "C3",
+      "title": "Test the HDA on three builds",
+      "after": [
+        "C1"
+      ],
+      "jev_where": "desk",
+      "where_conf": 1.0,
+      "scaffold": "fixture",
+      "effort": 2.42,
+      "effort_conf": 0.43,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "C4",
+      "title": "Check the Preview button",
+      "after": [
+        "C1"
+      ],
+      "jev_where": "desk",
+      "where_conf": 0.98,
+      "scaffold": "?",
+      "effort": 1.48,
+      "effort_conf": 0.5,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "C5",
+      "title": "Write the operator's card and README rows",
+      "after": [
+        "C3"
+      ],
+      "jev_where": "cloud",
+      "where_conf": 0.96,
+      "scaffold": "?",
+      "effort": 1.73,
+      "effort_conf": 0.68,
+      "unsure": false,
+      "lane": "cloud",
+      "model": "opus"
+    },
+    {
+      "id": "C6",
+      "title": "Merge, test and push wave 2",
+      "after": [
+        "C3",
+        "C5"
+      ],
+      "jev_where": "desk",
+      "where_conf": 0.79,
+      "scaffold": "fixture",
+      "effort": 2.11,
+      "effort_conf": 0.81,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "C7",
+      "title": "Release 0.2.0",
+      "after": [
+        "C6"
+      ],
+      "jev_where": "desk",
+      "where_conf": 0.34,
+      "scaffold": "none",
+      "effort": 1.65,
+      "effort_conf": 0.65,
+      "unsure": true,
+      "lane": "decision",
+      "model": "-"
+    },
+    {
+      "id": "C8",
+      "title": "Upload the social preview",
+      "after": [],
+      "jev_where": "desk",
+      "where_conf": 0.85,
+      "scaffold": "none",
+      "effort": 0.11,
+      "effort_conf": 0.89,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    }
+  ]
+}
