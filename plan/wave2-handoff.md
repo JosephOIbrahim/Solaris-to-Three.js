@@ -88,7 +88,7 @@ Where each step starts:
 
 ### 06. Carried over from the wave 1 review
 
-These are minor findings from the adversarial reviewer, folded into wave 2 rather than fixed in a hurry:
+These are minor findings from the adversarial reviewer, folded into wave 2 rather than fixed in a hurry. Three of them now have a recorded decision in `plan/decisions/` (raw probabilities in `plan/decisions.jsonl`): **validation-reporting is ADOPTED** (turn each validation problem into a `LossItem`), while `verdict-consistency` and `report-stage-binding` came back **ASK JOE** and wait on him. Read those files before changing the writer or the report.
 
 01. Principle 9: the writer drops validation problems; surface each as a `LossItem` (W3 touches this code anyway).
 

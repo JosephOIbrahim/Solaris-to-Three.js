@@ -1,0 +1,22 @@
+{
+  "id": "validation-reporting",
+  "decision": "How should the USD-folder writer surface the problems that its post-write validation finds?",
+  "constraints": {
+    "principle_9": "Fail open, fail loud: a missing optional piece degrades to a labelled warning, never a crash and never silence.",
+    "principle_5": "Structure out, never prose: the core returns data that each renderer prints its own way.",
+    "contract_4_4": "ExportResult's shape is fixed: format, entry_file, files, bytes, report, validated, preview_url."
+  },
+  "evidence": [
+    "writers/usd_folder.py write() calls validate_folder(entry) and keeps only validation.ok as ExportResult.validated; Validation.problems and census_text are discarded.",
+    "validate.py produces concrete problems such as 'outside the folder', 'resolves to no file' and '/WebSettings is not a Scope'.",
+    "api.py sets preview_url=None with no label when the export sits outside stages/.",
+    "The wave 1 adversarial review recorded this as a minor finding against principle 9: validated=False arrives with no reason anywhere in the result."
+  ],
+  "options": {
+    "loss_items": "Append one LossItem per validation problem to result.report (severity 'changes', feature 'validation', the problem text in becomes or examples), so the reason travels in the existing structure.",
+    "writer_attribute": "Keep the Validation object on the writer instance and expose it as an attribute, leaving ExportResult untouched."
+  },
+  "checks": {
+    "silent_failure": "Does the evidence show a case where the export reports validated=False and no reason for it appears anywhere in the returned result?"
+  }
+}

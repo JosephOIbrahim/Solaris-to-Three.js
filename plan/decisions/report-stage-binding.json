@@ -1,0 +1,22 @@
+{
+  "id": "report-stage-binding",
+  "decision": "How should the USD-folder writer stop writing stage B using a loss report that was built for stage A?",
+  "constraints": {
+    "principle_1": "An export is a translation: no writer runs before its loss report exists, and a blocking report writes nothing.",
+    "one_traversal": "The exporter deliberately gathers facts once (api.gather) so the census and the export read the same facts.",
+    "contract_4_4": "The Writer contract is write(stage, inv, out_dir, settings); the report is supplied on the writer."
+  },
+  "evidence": [
+    "api.py builds the report and skips write() when any item blocks, so the shipping path never mismatches.",
+    "write() returns early when the supplied report blocks, but it only re-checks plan problems; census findings such as composition errors or MaterialX without UVs are not recomputed.",
+    "UsdFolderWriter(report=<GO report from stage A>).write(stage_B, ...) would write stage B even if B's own findings block.",
+    "The wave 1 adversarial review recorded this as a minor finding against principle 1."
+  ],
+  "options": {
+    "recompute_in_write": "Always recompute the blocking findings inside write() before writing anything, so the writer can never trust a stale report.",
+    "bind_identifier": "Record the root layer identifier the report was built from and raise in write() when the stage it is given has a different one."
+  },
+  "checks": {
+    "stale_report_reachable": "Does the evidence show a reachable path where a writer receives a report built from a different stage?"
+  }
+}

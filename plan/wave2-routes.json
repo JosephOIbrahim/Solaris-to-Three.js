@@ -1,0 +1,151 @@
+{
+  "note": "Jev jev-latest",
+  "routes": [
+    {
+      "id": "W1",
+      "title": "Install the package into Houdini prefs",
+      "after": [],
+      "jev_where": "desk",
+      "where_conf": 0.96,
+      "scaffold": "none",
+      "effort": 0.81,
+      "effort_conf": 0.57,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "W2",
+      "title": "Check hython imports webexport",
+      "after": [
+        "W1"
+      ],
+      "jev_where": "desk",
+      "where_conf": 0.98,
+      "scaffold": "none",
+      "effort": 0.47,
+      "effort_conf": 0.54,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "W3",
+      "title": "Export in-memory LOP stages",
+      "after": [],
+      "jev_where": "cloud",
+      "where_conf": 0.91,
+      "scaffold": "spike",
+      "effort": 2.35,
+      "effort_conf": 0.49,
+      "unsure": false,
+      "lane": "cloud",
+      "model": "opus"
+    },
+    {
+      "id": "W4",
+      "title": "Probe the 43 open questions in hython",
+      "after": [
+        "W2"
+      ],
+      "jev_where": "desk",
+      "where_conf": 0.98,
+      "scaffold": "spike",
+      "effort": 1.46,
+      "effort_conf": 0.53,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "W5",
+      "title": "Build the Web Export HDA",
+      "after": [
+        "W3",
+        "W4"
+      ],
+      "jev_where": "desk",
+      "where_conf": 0.97,
+      "scaffold": "spike",
+      "effort": 2.73,
+      "effort_conf": 0.74,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "W6",
+      "title": "Test the HDA on three Houdini builds",
+      "after": [
+        "W5"
+      ],
+      "jev_where": "desk",
+      "where_conf": 0.98,
+      "scaffold": "fixture",
+      "effort": 2.08,
+      "effort_conf": 0.51,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "W7",
+      "title": "Check the Preview button can start the server",
+      "after": [
+        "W5"
+      ],
+      "jev_where": "desk",
+      "where_conf": 0.91,
+      "scaffold": "spike",
+      "effort": 1.36,
+      "effort_conf": 0.58,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "W8",
+      "title": "Merge wave 2, test and push",
+      "after": [
+        "W6",
+        "W7"
+      ],
+      "jev_where": "desk",
+      "where_conf": 0.64,
+      "scaffold": "?",
+      "effort": 2.14,
+      "effort_conf": 0.76,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "W9",
+      "title": "Write the Web Export card and release 0.2.0",
+      "after": [
+        "W8"
+      ],
+      "jev_where": "desk",
+      "where_conf": 0.6,
+      "scaffold": "none",
+      "effort": 1.92,
+      "effort_conf": 0.89,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "W10",
+      "title": "Decide when glTF and X3D start",
+      "after": [],
+      "jev_where": "decision",
+      "where_conf": 1.0,
+      "scaffold": "none",
+      "effort": 0.03,
+      "effort_conf": 0.98,
+      "unsure": false,
+      "lane": "decision",
+      "model": "-"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "verdict-consistency",
+  "decision": "Should LossReport refuse a verdict that contradicts its own items?",
+  "constraints": {
+    "contract_4_3": "The verdict rule is in code: any blocks gives FIX FIRST, else any changes gives GO WITH NOTES, else GO.",
+    "callers": "from_items() builds reports with the computed verdict; api.py and the writer branch on item severity, not on verdict, so principle 1 is unaffected either way.",
+    "testing": "Tests and external callers may build or deserialize a LossReport directly."
+  },
+  "evidence": [
+    "report.py LossReport is a plain dataclass: LossReport('usd_folder', 'GO', [LossItem('blocks', ...)]) is accepted with no check.",
+    "from_json() reads data['verdict'] verbatim instead of recomputing it from the items.",
+    "verdict_for() and from_items() already implement the rule correctly.",
+    "The wave 1 adversarial review recorded this as a minor finding against blueprint section 4.3."
+  ],
+  "options": {
+    "post_init_raise": "Add __post_init__ that raises whenever verdict differs from verdict_for(items), so no report can ever disagree with itself.",
+    "from_json_recompute": "Recompute the verdict in from_json() only, leaving the constructor free for callers that build reports directly."
+  },
+  "checks": {
+    "reachable_disagreement": "Does the evidence show a path where a report's verdict can disagree with its items in the code that ships today?"
+  }
+}
