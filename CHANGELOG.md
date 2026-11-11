@@ -4,6 +4,17 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+### Added
+
+- The Web Export core skeleton (`python/webexport`): `LossReport` and `LossItem` with the verdict rule, `render_text` and JSON round-trip, the `Profile` and `Writer` contracts, and `/WebSettings` read and write, all pure `pxr`.
+- `python/webexport/inventory.py` lists what is on a stage (meshes, instancers, materials, lights, cameras, variant sets, volumes, composition and textures) for the Web Export. The web census now reads the stage through it, so the census and the export see the same facts, and the census's verdicts are unchanged.
+- The USD folder export. `webexport.api.export()` writes a stage into one self-contained folder: the root layer, every sublayer, reference and payload (unselected variants included) and every texture, copied in, with every path made relative and kept inside the folder, and `/WebSettings` authored into the root layer. Files from outside the source folder land under `external/`. Before anything is written, a loss report built from the web census says what will not survive. Any fix-first item writes nothing. `api.check()` gives the report alone.
+- The viewer reads `/WebSettings` from the stage and applies `web:title`, `web:camera`, `web:hudVariantSets`, `web:showProxy`, `web:backgroundBlur`, `web:exposureOffset` and `web:showHud`; what it applied is recorded in `window.__report.webSettings`, and a browser check covers title and HUD.
+- A Houdini package file (`packages/webexport.json`) and `scripts/install_package.py`, which deploys a resolved copy into the Houdini 22 user prefs packages folder, with `--dry-run`, `--verify` and `--prefs-dir`.
+- A visual identity in `docs/assets/`: a logo mark (a vermilion sun on the horizon above three hairline scanlines) as light and dark SVG, wordmark lockups and a 1280 x 640 social preview rendered from HTML by `docs/assets/src/render.mjs`, five 11 px heading swatches, and a Mermaid theme that reads on GitHub's light and dark backgrounds.
+- README rewritten for calm reading, with a current status and the explainer video; both Mermaid diagrams take the house theme and now show the census catching files outside the export folder and the dome oriented by its transform and `poleAxis`.
+- `docs/media/explainer.mp4`, a silent 1 minute 47 second explainer in the house style, with its poster. `docs/media/explainer/` holds the page it is drawn from and `render.mjs`, which re-renders it and writes nothing if a font, an image, the reading time or the encoded file is off.
+
 ### Fixed
 
 - The dome's HDRI now faces the way USD says. The viewer applies USD's latlong convention (image centre at +Z), the dome's transform and `DomeLight_1`'s `poleAxis` to `scene.environmentRotation` and `scene.backgroundRotation`. Before, the dome's rotation was ignored and every HDRI sat 90 degrees off USD's convention. The fixture dome is now turned 75 degrees, and the browser test finds its sun where USD puts it.
