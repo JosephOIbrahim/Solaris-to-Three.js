@@ -8,19 +8,27 @@ and look right in the browser viewer (OpenUSD in WASM + three.js)?
     python web_census.py path/to/shot.usda --json census.json  (any Python with usd-core)
 
 Three kinds of work, kept apart on purpose:
-  facts     USD tells us (shader IDs, texture paths, lights, layers, UVs).
+  facts     USD tells us (shader IDs, texture paths, lights, layers, UVs), gathered by
+            python/webexport/inventory.py, the one place the census and the Web Export read the stage.
   decisions code makes (the verdict and every rule below).
   judgment  Jev (TypeSafe) gives, for one narrow question only: is a shader node
             code doesn't recognise portable MaterialX, or renderer-only?
 Set TYPESAFE_API_KEY to use Jev. Without a key the census still runs and those
 nodes are marked "needs your eyes". Nothing is sent anywhere else.
 """
-import argparse, json, os, re, sys
+import argparse, json, re, sys
 from pathlib import Path
 
 import jev  # tools/jev.py: the shared TypeSafe door
 
-from pxr import Sdf, Usd, UsdGeom, UsdLux, UsdShade
+# The facts live in python/webexport/. Nothing installs that package for a plain `python` or for
+# hython, so the census puts the repo's python/ folder on the path itself.
+_PYTHON = str(Path(__file__).resolve().parents[1] / "python")
+if _PYTHON not in sys.path:
+    sys.path.insert(0, _PYTHON)
+
+from pxr import Usd, UsdGeom  # noqa: E402
+from webexport.inventory import _norm, asset_location, gather, inside, is_absolute  # noqa: E402,F401
 
 # ---- rules: what the viewer is known to handle (tested 2026-10-30) ------------------
 TESTED_SHADERS = {"UsdPreviewSurface", "ND_standard_surface_surfaceshader", "ND_open_pbr_surface_surfaceshader"}
@@ -35,106 +43,15 @@ UNTESTED_TYPES = {"BasisCurves", "NurbsCurves", "HermiteCurves", "Points", "Nurb
 JEV_FLOOR = 0.5   # below this confidence Jev's answer is treated as "can't tell" (TypeSafe's suggested starting point)
 
 
-def is_absolute(p):
-    return os.path.isabs(p) or bool(re.match(r"^[A-Za-z]:[\\/]", p)) or p.startswith(("\\\\", "/"))
-
-
-def _norm(p):
-    return os.path.normcase(os.path.realpath(p))
-
-
-def inside(p, folder):
-    """True if path p sits in folder or below it (folder already normalised)."""
-    p = _norm(p)
-    return p == folder or p.startswith(folder.rstrip(os.sep) + os.sep)
-
-
-def asset_location(attr, ap):
-    """Where an asset path points on disk: USD's resolved path, or, when it doesn't resolve
-    (a missing file or a <UDIM> pattern), the path anchored to the layer that authored it."""
-    if ap.resolvedPath:
-        return ap.resolvedPath
-    for spec in attr.GetPropertyStack(Usd.TimeCode.Default()):
-        if spec.layer and not spec.layer.anonymous and spec.layer.realPath:
-            where = spec.layer.ComputeAbsolutePath(ap.path)
-            # A bare "tex/a.png" is a USD search path and comes back unanchored; anchor it to the layer.
-            if not os.path.isabs(where):
-                where = os.path.join(os.path.dirname(spec.layer.realPath), where)
-            return where
-    return None
-
-
 def census(path):
+    """The facts, from webexport.inventory.gather(), under the census's own names."""
     stage = Usd.Stage.Open(str(path))
     if not stage:
         sys.exit(f"Could not open {path}")
-    # The export folder is the root layer's folder. The server can only reach files under it,
-    # so a layer or texture outside it (a "../" path) loads in Houdini and 404s in the browser.
-    root_dir = _norm(os.path.dirname(stage.GetRootLayer().realPath))
-    outside = []
-    shaders, textures, lights, untested = {}, [], {}, {}
-    no_uv, unbound, purposes, prims = [], [], {"proxy": 0, "guide": 0}, 0
-
-    for prim in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies()):
-        prims += 1
-        t = prim.GetTypeName()
-        if t in UNTESTED_TYPES:
-            untested.setdefault(t, []).append(str(prim.GetPath()))
-        if prim.IsA(UsdGeom.Imageable):
-            p = UsdGeom.Imageable(prim).ComputePurpose()
-            if p in purposes:
-                purposes[p] += 1
-        if prim.IsA(UsdShade.Shader):
-            sh = UsdShade.Shader(prim)
-            sid = sh.GetShaderId() or ("sourceAsset" if sh.GetImplementationSource() == "sourceAsset" else "(none)")
-            e = shaders.setdefault(sid, {"count": 0, "example": str(prim.GetPath()),
-                                         "inputs": sorted(i.GetBaseName() for i in sh.GetInputs())[:24]})
-            e["count"] += 1
-        if prim.HasAPI(UsdLux.LightAPI) or t.endswith("Light"):
-            lights.setdefault(t, []).append(str(prim.GetPath()))
-        if prim.IsA(UsdShade.Shader) or prim.HasAPI(UsdLux.LightAPI):
-            for a in prim.GetAttributes():
-                if a.GetTypeName() not in (Sdf.ValueTypeNames.Asset, Sdf.ValueTypeNames.AssetArray):
-                    continue
-                v = a.Get()
-                for ap in ([v] if isinstance(v, Sdf.AssetPath) else list(v or [])):
-                    if isinstance(ap, Sdf.AssetPath) and ap.path:
-                        textures.append({"path": ap.path, "resolved": bool(ap.resolvedPath), "prim": str(prim.GetPath()),
-                                         "dome": t.startswith("DomeLight"), "ext": os.path.splitext(ap.path)[1].lower()})
-                        # Absolute and $VAR paths have their own fix-first line; don't count them twice.
-                        if not is_absolute(ap.path) and "$" not in ap.path:
-                            where = asset_location(a, ap)
-                            if where and not inside(where, root_dir):
-                                outside.append(ap.path)
-        if prim.IsA(UsdGeom.Mesh) and UsdGeom.Imageable(prim).ComputePurpose() in ("default", "render"):
-            mats = [UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]]
-            mats += [UsdShade.MaterialBindingAPI(s.GetPrim()).ComputeBoundMaterial()[0]
-                     for s in UsdGeom.Subset.GetAllGeomSubsets(UsdGeom.Imageable(prim))]
-            mats = [m for m in mats if m]
-            if not mats:
-                unbound.append(str(prim.GetPath()))
-            elif any(m.GetSurfaceOutput("mtlx") for m in mats):
-                pv = UsdGeom.PrimvarsAPI(prim).GetPrimvars()
-                if not any(p.GetTypeName() in (Sdf.ValueTypeNames.TexCoord2fArray, Sdf.ValueTypeNames.Float2Array) for p in pv):
-                    no_uv.append(str(prim.GetPath()))
-
-    layers = {}
-    for layer in stage.GetUsedLayers():
-        if layer.anonymous:
-            continue
-        ext = os.path.splitext(layer.identifier.split(":SDF_FORMAT_ARGS:")[0])[1].lower()
-        layers.setdefault(ext, []).append(layer.identifier)
-        if layer.realPath and not inside(layer.realPath, root_dir):
-            try:  # shown as written on disk (realpath, not normcase, which lowercases on Windows)
-                outside.append(os.path.relpath(os.path.realpath(layer.realPath),
-                                               os.path.realpath(os.path.dirname(stage.GetRootLayer().realPath)))
-                               .replace(os.sep, "/"))
-            except ValueError:  # another drive on Windows: no relative path exists
-                outside.append(layer.realPath)
-    errors = list(getattr(stage, "GetCompositionErrors", lambda: [])())
-    return {"stage": stage, "shaders": shaders, "textures": textures, "lights": lights, "untested": untested,
-            "no_uv": no_uv, "unbound": unbound, "purposes": purposes, "prims": prims, "layers": layers,
-            "outside": sorted(set(outside)), "errors": [str(e) for e in errors]}
+    f = gather(stage, track_types=UNTESTED_TYPES)
+    return {"stage": stage, "shaders": f.shaders, "textures": f.asset_rows, "lights": f.lights_by_type,
+            "untested": f.tracked, "no_uv": f.no_uv, "unbound": f.unbound, "purposes": f.purposes,
+            "prims": f.prims, "layers": f.layers, "outside": f.outside, "errors": f.errors}
 
 
 def ask_jev(nodes):
