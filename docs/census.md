@@ -24,7 +24,8 @@ Any Python with `pip install usd-core` works too. Add `--json census.json` to sa
 
 ## Common `x` fixes
 
-- Set the USD ROP to relative paths, and export every payload and texture into the folder.
+- Set the USD ROP to relative paths, and export every payload and texture into the folder. The settings are in [export.md](export.md).
+- **Files outside the export folder:** a `../` path loads in Houdini and 404s on the web. Copy the file into the export folder and re-export; [export.md](export.md) covers referenced assets.
 - Convert `.rat` and `.tx` to `.png`, `.jpg` or `.exr`.
 - Bake UDIMs to a single map; the browser has no UDIM support.
 - Give every MaterialX mesh UVs (`primvars:st`).
@@ -46,6 +47,6 @@ export TYPESAFE_API_KEY="..."    # bash
 
 ## Self-test
 
-`fixtures/stage-dirty/dirty.usda` has eight planted problems. Run the census on it with `--no-jev` and expect **6 `x` and 3 `!`**. `python -m unittest tests.test_census` checks the same thing automatically. Rebuild the fixture with `python tools/make_dirty_stage.py`.
+`fixtures/stage-dirty/dirty.usda` has eight planted problems. Run the census on it with `--no-jev` and expect **6 `x` and 3 `!`**. `fixtures/stage-escape/export/shot.usda` points at three files outside its folder; expect them under **files outside the export folder**. `python -m unittest tests.test_census` checks both automatically. Rebuild the fixture with `python tools/make_dirty_stage.py`.
 
 **Never** paste the API key into a chat, an issue or a commit.

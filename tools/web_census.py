@@ -39,10 +39,39 @@ def is_absolute(p):
     return os.path.isabs(p) or bool(re.match(r"^[A-Za-z]:[\\/]", p)) or p.startswith(("\\\\", "/"))
 
 
+def _norm(p):
+    return os.path.normcase(os.path.realpath(p))
+
+
+def inside(p, folder):
+    """True if path p sits in folder or below it (folder already normalised)."""
+    p = _norm(p)
+    return p == folder or p.startswith(folder.rstrip(os.sep) + os.sep)
+
+
+def asset_location(attr, ap):
+    """Where an asset path points on disk: USD's resolved path, or, when it doesn't resolve
+    (a missing file or a <UDIM> pattern), the path anchored to the layer that authored it."""
+    if ap.resolvedPath:
+        return ap.resolvedPath
+    for spec in attr.GetPropertyStack(Usd.TimeCode.Default()):
+        if spec.layer and not spec.layer.anonymous and spec.layer.realPath:
+            where = spec.layer.ComputeAbsolutePath(ap.path)
+            # A bare "tex/a.png" is a USD search path and comes back unanchored; anchor it to the layer.
+            if not os.path.isabs(where):
+                where = os.path.join(os.path.dirname(spec.layer.realPath), where)
+            return where
+    return None
+
+
 def census(path):
     stage = Usd.Stage.Open(str(path))
     if not stage:
         sys.exit(f"Could not open {path}")
+    # The export folder is the root layer's folder. The server can only reach files under it,
+    # so a layer or texture outside it (a "../" path) loads in Houdini and 404s in the browser.
+    root_dir = _norm(os.path.dirname(stage.GetRootLayer().realPath))
+    outside = []
     shaders, textures, lights, untested = {}, [], {}, {}
     no_uv, unbound, purposes, prims = [], [], {"proxy": 0, "guide": 0}, 0
 
@@ -72,6 +101,11 @@ def census(path):
                     if isinstance(ap, Sdf.AssetPath) and ap.path:
                         textures.append({"path": ap.path, "resolved": bool(ap.resolvedPath), "prim": str(prim.GetPath()),
                                          "dome": t.startswith("DomeLight"), "ext": os.path.splitext(ap.path)[1].lower()})
+                        # Absolute and $VAR paths have their own fix-first line; don't count them twice.
+                        if not is_absolute(ap.path) and "$" not in ap.path:
+                            where = asset_location(a, ap)
+                            if where and not inside(where, root_dir):
+                                outside.append(ap.path)
         if prim.IsA(UsdGeom.Mesh) and UsdGeom.Imageable(prim).ComputePurpose() in ("default", "render"):
             mats = [UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]]
             mats += [UsdShade.MaterialBindingAPI(s.GetPrim()).ComputeBoundMaterial()[0]
@@ -90,10 +124,17 @@ def census(path):
             continue
         ext = os.path.splitext(layer.identifier.split(":SDF_FORMAT_ARGS:")[0])[1].lower()
         layers.setdefault(ext, []).append(layer.identifier)
+        if layer.realPath and not inside(layer.realPath, root_dir):
+            try:  # shown as written on disk (realpath, not normcase, which lowercases on Windows)
+                outside.append(os.path.relpath(os.path.realpath(layer.realPath),
+                                               os.path.realpath(os.path.dirname(stage.GetRootLayer().realPath)))
+                               .replace(os.sep, "/"))
+            except ValueError:  # another drive on Windows: no relative path exists
+                outside.append(layer.realPath)
     errors = list(getattr(stage, "GetCompositionErrors", lambda: [])())
     return {"stage": stage, "shaders": shaders, "textures": textures, "lights": lights, "untested": untested,
             "no_uv": no_uv, "unbound": unbound, "purposes": purposes, "prims": prims, "layers": layers,
-            "errors": [str(e) for e in errors]}
+            "outside": sorted(set(outside)), "errors": [str(e) for e in errors]}
 
 
 def ask_jev(nodes):
@@ -133,6 +174,7 @@ def decide(c, jev_on=True):
     add(red, "layer formats the browser can't read", bad_layers)
     tex = c["textures"]
     add(red, "absolute or $VAR asset paths", [t["path"] for t in tex if is_absolute(t["path"]) or "$" in t["path"]])
+    add(red, "files outside the export folder (404 on the web)", c["outside"])
     add(red, "UDIM textures (no UDIM support)", [t["path"] for t in tex if "<udim>" in t["path"].lower()])
     add(red, "texture formats the browser can't load", [t["path"] for t in tex if not t["dome"] and "<" not in t["path"]
                                                           and t["ext"] not in WEB_TEXTURES])

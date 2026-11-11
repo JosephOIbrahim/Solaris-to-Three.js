@@ -30,7 +30,7 @@ def Scope "cameras"
 
 def Scope "lights"
 {
-    def DomeLight "dome"
+    def DomeLight_1 "dome"
     {
         float inputs:exposure = 0
         float inputs:intensity = 1

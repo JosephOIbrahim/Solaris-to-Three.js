@@ -255,7 +255,8 @@ view = Gf.Matrix4d().SetLookAt(eye, target, Gf.Vec3d(0, 1, 0))
 cam.AddTransformOp().Set(view.GetInverse())
 
 UsdGeom.Scope.Define(s, "/lights")
-dome = UsdLux.DomeLight.Define(s, "/lights/dome")
+# DomeLight_1 is what Houdini 22's Dome Light LOP (domelight::3.0) writes; the older schema is DomeLight.
+dome = UsdLux.DomeLight_1.Define(s, "/lights/dome")
 dome.CreateTextureFileAttr(Sdf.AssetPath("./env/sky.hdr"))
 dome.CreateTextureFormatAttr(UsdLux.Tokens.latlong)
 dome.CreateIntensityAttr(1.0)

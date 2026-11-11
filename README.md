@@ -36,7 +36,7 @@ Open http://127.0.0.1:5180. The status line reports the three.js version, whethe
 
 ## Your own Solaris export
 
-1. On the USD ROP, write the root layer, payloads and textures into one folder with relative paths.
+1. On the USD ROP, write the root layer, payloads and textures into one folder with relative paths. The settings and output processors are in [docs/export.md](docs/export.md).
 2. Check it: `hython tools/web_census.py <folder>/<root>.usda`. Fix anything under **FIX FIRST**. The card is [docs/census.md](docs/census.md).
 3. Copy the folder to `stages/<name>/`. Everything in `stages/` except the placeholder is git-ignored, so client work never lands in the repo.
 4. Open `/?stage=/stages/<name>/<root>.usda` and read the status line. It names every prim whose material fell back to the grey default.
@@ -65,6 +65,7 @@ The server matters more than it looks. The OpenUSD build is threaded and needs `
 | `tools/jev.py` | The shared door to TypeSafe's Jev, used by both tools above. Standard library only; fails open. | Python 3 |
 | `tools/make_stage.py` | Rebuilds the Solaris-shaped fixture stage | `pxr`, `numpy` |
 | `tools/make_dirty_stage.py` | Rebuilds the fixture with eight planted problems | `pxr` |
+| `tools/make_escape_stage.py` | Rebuilds the fixture that points outside its export folder | `pxr` |
 
 Jev is optional everywhere. Set `TYPESAFE_API_KEY` in your environment to turn it on; without it, both tools still run and say so.
 
@@ -78,6 +79,7 @@ tools/                    census, router, Jev client, fixture builders
 fixtures/stage/           Solaris-shaped test stage: shot.usda, hero/asset.usda, env/sky.hdr
 fixtures/stage-flat/      the same asset flattened to .usdz for three's own USDLoader
 fixtures/stage-dirty/     a stage with eight planted problems, for the census
+fixtures/stage-escape/    an export that points outside its own folder, for the census
 stages/                   your exports go here (git-ignored)
 plan/                     the 16 roadmap tasks and the router's reference labels
 tests/                    Python unit tests and a local Jev stand-in

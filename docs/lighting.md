@@ -25,7 +25,7 @@ Then each type converts to three.js intensity:
 | `SphereLight` | L × π × radius² (its projected disk, seen from anywhere) |
 | `DistantLight` | L × π × (angle / 2)², angle in radians |
 | any light with `inputs:normalize = 1` | L, because the light is already normalised to its size |
-| `DomeLight` | not a light in three.js; see below |
+| `DomeLight`, `DomeLight_1` | not a light in three.js; see below |
 
 Point and spot lights get `decay = 2`, which is physical inverse-square falloff. Colour comes from `inputs:color` unchanged.
 

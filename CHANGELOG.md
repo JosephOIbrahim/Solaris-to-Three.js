@@ -4,6 +4,15 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+### Added
+
+- `docs/export.md`, the operator's card for setting up the USD ROP for the web: save style, metrics and the order of the built-in output processors.
+- The census reports layers and textures outside the export folder (`../` paths) as fix-first. They load in Houdini and 404 in the browser. A new fixture, `fixtures/stage-escape/`, covers it.
+
+### Fixed
+
+- The viewer recognises `DomeLight_1`, the schema Houdini 22's Dome Light LOP writes. Before, the environment silently went missing while the census said GO. The fixture stage now uses `DomeLight_1`, and the browser test checks it.
+
 ## [0.1.2] - 2026-11-02
 
 ### Fixed

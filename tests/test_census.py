@@ -21,6 +21,8 @@ except ImportError:  # no pxr on this machine
 
 CLEAN = ROOT / "fixtures" / "stage" / "shot.usda"
 DIRTY = ROOT / "fixtures" / "stage-dirty" / "dirty.usda"
+ESCAPE = ROOT / "fixtures" / "stage-escape" / "export" / "shot.usda"
+OUTSIDE = "files outside the export folder (404 on the web)"
 DEFAULT_URL = jev.URL
 
 FIX_FIRST = {
@@ -50,6 +52,35 @@ class CensusTest(unittest.TestCase):
         self.assertEqual(verdict, "GO")
         self.assertEqual(red, [])
         self.assertEqual(amber, [])
+
+    def test_clean_stage_dome_is_houdini_22_schema(self):
+        # Houdini 22's Dome Light LOP writes DomeLight_1; the fixture matches, and the census counts it as bridged.
+        c = web_census.census(CLEAN)
+        self.assertEqual(c["lights"].get("DomeLight_1"), ["/lights/dome"])
+        self.assertNotIn("DomeLight", c["lights"])
+        self.assertEqual(c["outside"], [])
+
+    def test_escape_stage_flags_every_file_outside_the_export_folder(self):
+        cwd = os.getcwd()
+        os.chdir(Path.home())  # bare paths must anchor to their layer, not to the working directory
+        try:
+            c = web_census.census(ESCAPE)
+        finally:
+            os.chdir(cwd)
+        self.assertEqual(c["outside"], ["../lib/asset.usda", "../lib/skin.<UDIM>.png", "../lib/wood.png"])
+        verdict, red, _amber, _info, _note = web_census.decide(c, jev_on=False)
+        self.assertEqual(verdict, "FIX FIRST")
+        counts = {label: n for label, n, _ex in red}
+        self.assertEqual(counts[OUTSIDE], 3)
+        # The paths are relative and the files exist, so the older rules all passed them.
+        self.assertNotIn("absolute or $VAR asset paths", counts)
+        # tex/missing.png sits inside the folder: it is a missing file, not an outside one.
+        self.assertEqual(counts["missing files"], 1)
+
+    def test_paths_that_climb_back_inside_are_fine(self):
+        root = web_census._norm(str(ESCAPE.parent))
+        self.assertTrue(web_census.inside(str(ESCAPE.parent / ".." / "export" / "tex" / "ok.png"), root))
+        self.assertFalse(web_census.inside(str(ESCAPE.parent.parent / "export2" / "x.png"), root))  # sibling prefix
 
     def test_dirty_stage_catches_all_eight_planted_problems(self):
         verdict, red, amber, _info, note = self.run_census(DIRTY)

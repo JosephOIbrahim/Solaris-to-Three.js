@@ -1,0 +1,80 @@
+#usda 1.0
+(
+    defaultPrim = "scene"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "scene"
+{
+    def Xform "asset" (
+        prepend references = @../lib/asset.usda@
+    )
+    {
+    }
+
+    def Xform "inside" (
+        prepend references = @./parts/inside.usda@
+    )
+    {
+    }
+
+    def "mtl"
+    {
+        def Material "look"
+        {
+            token outputs:surface.connect = </scene/mtl/look/surf.outputs:surface>
+
+            def Shader "surf"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                token outputs:surface
+            }
+
+            def Shader "ok"
+            {
+                uniform token info:id = "UsdUVTexture"
+                asset inputs:file = @./tex/ok.png@
+            }
+
+            def Shader "wood"
+            {
+                uniform token info:id = "UsdUVTexture"
+                asset inputs:file = @../lib/wood.png@
+            }
+
+            def Shader "skin"
+            {
+                uniform token info:id = "UsdUVTexture"
+                asset inputs:file = @../lib/skin.<UDIM>.png@
+            }
+
+            def Shader "missing"
+            {
+                uniform token info:id = "UsdUVTexture"
+                asset inputs:file = @tex/missing.png@
+            }
+        }
+    }
+
+    def "geo"
+    {
+        def Mesh "card" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            rel material:binding = </scene/mtl/look>
+            point3f[] points = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)]
+        }
+    }
+
+    def "lights"
+    {
+        def DomeLight_1 "dome"
+        {
+        }
+    }
+}
+

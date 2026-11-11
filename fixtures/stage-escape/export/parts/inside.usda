@@ -1,0 +1,10 @@
+#usda 1.0
+(
+    defaultPrim = "inside"
+    upAxis = "Y"
+)
+
+def Xform "inside"
+{
+}
+

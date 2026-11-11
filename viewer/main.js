@@ -83,7 +83,7 @@ async function readStage() {
       const prim = prims.get(i);
       const type = prim.GetTypeName();
       const path = prim.GetPath();
-      if (/Light$/.test(type)) {
+      if (/Light(_\d+)?$/.test(type)) { // DomeLight_1: the schema Houdini 22's Dome Light LOP writes
         const v = (n) => { const a = prim.GetAttribute(n); return a?.IsValid?.() && a.HasAuthoredValue() ? a.GetValueString() : null; };
         lights.push({ path, type,
           intensity: v("inputs:intensity"), exposure: v("inputs:exposure"), color: v("inputs:color"),
@@ -114,10 +114,12 @@ report.variantSets = composed.variantSets;
 const num = (s, d) => { const n = parseFloat(String(s ?? "").replace(/[()]/g, "")); return Number.isFinite(n) ? n : d; };
 const vec3 = (s, d) => { const m = String(s ?? "").match(/-?[\d.eE+-]+/g); return m && m.length >= 3 ? m.slice(0, 3).map(Number) : d; };
 const assetPath = (s) => String(s ?? "").replace(/^@|@$/g, "");
+// Houdini 22's Dome Light LOP (domelight::3.0) writes DomeLight_1; older versions write DomeLight.
+const isDome = (type) => /^DomeLight(_\d+)?$/.test(type);
 
 let envTexture = null;
 async function applyDome() {
-  const dome = composed.lights.find((l) => l.type === "DomeLight");
+  const dome = composed.lights.find((l) => isDome(l.type));
   if (!dome) return;
   const L = num(dome.intensity, 1) * 2 ** num(dome.exposure, 0);
   if (!envTexture && dome.texture) {
@@ -129,7 +131,7 @@ async function applyDome() {
     const pmrem = new THREE.PMREMGenerator(renderer);
     envTexture = pmrem.fromEquirectangular(hdr).texture;
     pmrem.dispose(); hdr.dispose();
-    report.env = { url, size: [hdr.image.width, hdr.image.height] };
+    report.env = { url, type: dome.type, size: [hdr.image.width, hdr.image.height] };
   }
   scene.environment = envTexture;
   scene.background = envTexture;
@@ -160,7 +162,7 @@ function applyBridge() {
     if (!o.isLight) return;
     const l = byPath.get(o.userData.usdPath);
     if (!l) return;
-    if (l.type === "DomeLight") { o.visible = false; return; } // replaced by the environment map
+    if (isDome(l.type)) { o.visible = false; return; } // replaced by the environment map
     const c = vec3(l.color, [1, 1, 1]);
     o.color.setRGB(c[0], c[1], c[2]);
     o.intensity = bridgedIntensity(l);

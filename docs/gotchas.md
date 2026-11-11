@@ -18,6 +18,14 @@ The Hydra draw was starving: the page kept rendering while the delegate re-synce
 
 The host isn't sending the two headers. Use `npm start`, or configure your host to send `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. Opening `index.html` from disk can never work.
 
+## The dome light does nothing
+
+**Houdini 22's Dome Light LOP writes `DomeLight_1`, not `DomeLight`.** The viewer only recognised the old schema, so the environment silently went missing while the census said GO. The viewer now accepts both, and the fixture uses `DomeLight_1` so the browser test covers it.
+
+## The census said GO and the browser shows 404s
+
+**A `../` path leaves the export folder.** Houdini's Use Relative Paths processor writes one for anything outside the USD ROP's output folder. The file exists on the workstation, so it loads in Houdini, but only the export folder is copied to `stages/<name>/`. The census now reports these as fix-first. The ROP settings that avoid them are in [export.md](export.md).
+
 ## Textures don't load
 
 Needle's delegate loads `.png`, `.jpg`, `.tga` and `.exr`. Karma's `.rat` and `.tx` files will not load, and there is no UDIM support. Convert or bake before export. The census lists every one.
