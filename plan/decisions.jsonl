@@ -1,0 +1,1 @@
+{"id": "w3-in-memory-export", "date": "2026-11-11", "jev": "Jev jev-latest", "choice": "stage_then_m2_writer", "probability": 0.95, "confidence": 0.92, "probabilities": {"brief_recipe": 0.03, "stage_then_m2_writer": 0.95, "neither": 0.02}, "needs_person": 0.3, "checks": {"localize_risk": 0.98}, "verdict": "ADOPT", "reasons": []}

@@ -2,9 +2,11 @@
 
 It answers in the documented response shapes:
   Choice -> {"type": "choice", "choice", "confidence", "probabilities"}
+  Noul   -> {"type": "noul", "noul"}
   Score  -> {"type": "score", "score", "confidence", "legend", "probabilities"}
-`decide(question_id, question, state)` returns (option, top_probability) for a Choice and
-(score, confidence) for a Score. `fail_first` makes the first request return that HTTP status.
+`decide(question_id, question, state)` returns (option, top_probability) for a Choice, the
+probability of yes for a Noul, and (score, confidence) for a Score. `fail_first` makes the
+first request return that HTTP status.
 This checks our plumbing and policy, not Jev's judgment.
 """
 import json
@@ -46,6 +48,8 @@ class JevStub:
                         n = len(options)
                         answers[qid] = {"type": "choice", "choice": pick, "confidence": (p - 1 / n) / (1 - 1 / n),
                                         "probabilities": {o: p if o == pick else (1 - p) / (n - 1) for o in options}}
+                    elif q["type"] == "noul":
+                        answers[qid] = {"type": "noul", "noul": stub.decide(qid, q, body["state"])}
                     else:
                         levels = q["criteria"]
                         score, confidence = stub.decide(qid, q, body["state"])

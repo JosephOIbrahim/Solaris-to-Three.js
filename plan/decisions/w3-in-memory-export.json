@@ -1,0 +1,24 @@
+{
+  "id": "w3-in-memory-export",
+  "decision": "How webexport.api.export should write a USD folder for a Houdini LOP stage, whose root layer is an anonymous in-memory layer with a stack of anonymous and file sublayers.",
+  "constraints": {
+    "principle_1": "An export is a translation, and the loss report is the product. No writer runs before its loss report exists; when the report blocks, the writer writes nothing.",
+    "principle_3": "The core is pure pxr and must pass its tests with usd-core alone, so CI can test it.",
+    "principle_7": "One format is one plugin: a Profile plus a Writer per format.",
+    "browser": "The browser's OpenUSD resolver anchors every relative asset path to the URL of the layer that holds it, and the server only serves files inside the export folder."
+  },
+  "evidence": [
+    "Probe on usd-core 26.5 in this repo: UsdUtils.LocalizeAsset rewrote a missing texture D:/textures/wood.png to a dangling 0/wood.png, and wrote search-path style paths such as 1/wood.rat for files outside the root folder.",
+    "Research run, localize_raw_paths case: a failed input was rewritten to 3/a.png while folder 3 held b.png, and root-relative nested paths failed a strict open.",
+    "Research run: UsdUtils.LocalizeAsset on an anonymous root returns False, so the stack must be staged to a file first; the brief's recipe passed its own fresh-process checks with the census saying GO after the anchoring post-pass.",
+    "Research run, not yet proven for the brief's recipe: deciding FIX FIRST before LocalizeAsset writes anything.",
+    "Wave 1: the M2 writer passed its checks, including a stage with a reference and a texture outside its folder (pulled in, census GO) and a dirty stage (FIX FIRST, nothing written)."
+  ],
+  "options": {
+    "brief_recipe": "Merge the layer stack with UsdUtils.FlattenLayerStack, stage it to a file, then run UsdUtils.LocalizeAsset into the output folder (it writes files into numbered folders such as 0/sky.hdr and 1/asset.usda) and finish with a post-pass that rewrites root-relative paths into ./ and ../ forms.",
+    "stage_then_m2_writer": "Merge the layer stack with UsdUtils.FlattenLayerStack and stage it to a file, then hand that file to the USD-folder writer that wave 1 already built and tested, which copies dependencies itself with UsdUtils.ComputeAllDependencies, keeps the source folder layout, and rewrites every asset path with UsdUtils.ModifyAssetPaths into ./ or ../ paths inside the folder."
+  },
+  "checks": {
+    "localize_risk": "Does `evidence` show that UsdUtils.LocalizeAsset can leave an asset path dangling or pointing at the wrong file?"
+  }
+}
