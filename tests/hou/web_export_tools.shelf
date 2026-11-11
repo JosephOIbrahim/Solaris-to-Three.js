@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The TAB menu entry for the Web Export HDA, in the shape SideFX writes in
+     pdg/hda/ropwrapper.py (no <toolshelf> wrapper). $HDA_* placeholders are
+     expanded by Houdini when it reads the section. -->
+<shelfDocument>
+  <tool name="$HDA_DEFAULT_TOOL" label="$HDA_LABEL" icon="$HDA_ICON">
+    <toolMenuContext name="network">
+      <contextOpType>$HDA_TABLE_AND_NAME</contextOpType>
+    </toolMenuContext>
+    <toolSubmenu>File IO/Export</toolSubmenu>
+    <script scriptType="python"><![CDATA[import loptoolutils
+
+loptoolutils.genericTool(kwargs, '$HDA_NAME')]]></script>
+  </tool>
+</shelfDocument>
