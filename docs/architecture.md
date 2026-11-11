@@ -32,7 +32,7 @@ flowchart TB
     delegate --> mtlx["MaterialX 1.8.0: shader generation"]
     delegate --> scene["three.js r187 scene"]
     mtlx --> scene
-    bridge["Lighting bridge: reads DomeLight_1, orients the dome by its transform and poleAxis, USD lights to candela"]:::stone --> scene
+    bridge["Lighting bridge: reads DomeLight_1, dome to environment, oriented by its transform and poleAxis, USD lights to candela"]:::stone --> scene
     scene --> webgl["WebGL"]
   end
   classDef stone fill:#DEE4E5,stroke:#7096A7,stroke-width:1.5px,color:#2E2B28

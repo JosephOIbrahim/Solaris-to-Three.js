@@ -93,7 +93,7 @@ flowchart TB
   server --> usd["OpenUSD 26.05 in WebAssembly composes the stage"]:::stone
   usd --> delegate["Needle's three.js Hydra delegate, MaterialX 1.8.0"]
   delegate --> scene["three.js r187 scene, WebGL"]
-  bridge["lighting bridge: reads DomeLight_1, orients the dome by its transform and poleAxis, converts light units to candela"]:::stone --> scene
+  bridge["lighting bridge: reads DomeLight_1, dome to environment, oriented by its transform and poleAxis, light units to candela"]:::stone --> scene
   classDef stone fill:#DEE4E5,stroke:#7096A7,stroke-width:1.5px,color:#2E2B28
   classDef moss fill:#E5E8DC,stroke:#91A87B,stroke-width:1.5px,color:#2E2B28
   classDef ochre fill:#EBE2D2,stroke:#AE8B4C,stroke-width:1.5px,color:#2E2B28
