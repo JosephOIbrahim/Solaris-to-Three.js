@@ -337,7 +337,9 @@ class UnseenByTheCensus(TempCase):
 
 @unittest.skipIf(Usd is None, NEEDS_PXR)
 class UnsavedLayers(TempCase):
-    """The writer copies files, so an edit that lives only in memory would be lost. It says so instead."""
+    """The writer copies files, so an edit that lives only in memory would be lost. It says so
+    instead. An anonymous root layer is the exception: that is a LOP stage, and api.export
+    flattens it to a file first (see test_webexport_inmemory.py)."""
 
     def test_unsaved_edit_blocks(self):
         shutil.copytree(CLEAN.parent, self.tmp / "src")
@@ -353,13 +355,16 @@ class UnsavedLayers(TempCase):
         self.assertIn("root_format", blocks(r))  # a package: /WebSettings has nowhere to go
         self.assertFalse((self.tmp / "out").exists())
 
-    def test_in_memory_stage_blocks(self):
+    def test_in_memory_root_is_flattened_and_written(self):
         stage = Usd.Stage.CreateInMemory()
         UsdGeom.Xform.Define(stage, "/scene")
         r = export_one(stage, self.tmp / "out")
-        self.assertEqual(blocks(r), {"unsaved_layer"})
-        self.assertEqual(r.entry_file, self.tmp / "out" / "out.usda")
-        self.assertFalse((self.tmp / "out").exists())
+        self.assertEqual(r.report.verdict, "GO")
+        self.assertEqual(r.entry_file, self.tmp / "out" / "stage.usda")
+        self.assertTrue(r.entry_file.is_file())
+        self.assertTrue(r.validated)
+        reopened = Usd.Stage.Open(str(r.entry_file))
+        self.assertTrue(reopened.GetPrimAtPath("/scene"))
 
 
 @unittest.skipIf(Usd is None, NEEDS_PXR)
