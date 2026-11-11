@@ -36,6 +36,8 @@ def Scope "lights"
         float inputs:intensity = 1
         asset inputs:texture:file = @./env/sky.hdr@
         token inputs:texture:format = "latlong"
+        float xformOp:rotateY = 75
+        uniform token[] xformOpOrder = ["xformOp:rotateY"]
     }
 
     def RectLight "key"

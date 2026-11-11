@@ -42,7 +42,7 @@ Fix anything under **FIX FIRST** (the card is [census.md](census.md)), copy the 
 ## Lights
 
 - **Dome Light LOP:** both schemas work. The current node (`domelight::3.0`) writes `DomeLight_1`; older versions write `DomeLight`. The texture must be `.hdr` for now (T09).
-- The bridge never reads the dome's transform or `poleAxis`, so a dome rotated with the LOP's **Rotate** should light the web scene from a different side than Karma does. That follows from the code; it hasn't been tested on a rotated dome.
+- The dome's **Rotate** and **Pole Axis** carry over: the bridge orients the HDRI by USD's latlong convention, the dome's transform and `poleAxis`, and the browser test checks a rotated dome. Matching Karma side by side is still to be checked on a real scene (T03).
 - Needle's delegate (`@needle-tools/usd` 1.1.2) creates rect, disk, sphere and cylinder lights as three.js point lights, read in its source. A rect light then lights in every direction. The arithmetic is in [lighting.md](lighting.md).
 
 ## From a script (untested)

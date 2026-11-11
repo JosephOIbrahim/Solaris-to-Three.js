@@ -29,6 +29,28 @@ const shot = (page, name) => page.screenshot({ path: `${OUT}${name}.png`, timeou
 
 const page = await open({ width: 1280, height: 720 });
 await shot(page, "01-hydra-ember");
+
+// Dome orientation: find the sun of fixtures/stage/env/sky.hdr where USD says it is.
+// The sky's writer (tools/make_stage.py) puts the sun at texel u = atan2(z, x) / 2pi, row = acos(y) / pi
+// of SUN below. USD reads a latlong image with the OpenEXR convention (UsdLux DomeLight docs): latitude
+// +pi/2 on the top row, longitude +pi at the left edge falling to -pi at the right, longitude 0 = +Z,
+// longitude pi/2 = +X. Then the dome's rotateY places it in the world.
+const DOME_ROTATE_Y = 75; // must match dome.AddRotateYOp().Set(...) in tools/make_stage.py
+const sun = (() => {
+  const [x, y, z] = [-0.55, 0.62, 0.56], n = Math.hypot(x, y, z);
+  const u = ((Math.atan2(z / n, x / n) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI);
+  const lat = Math.PI / 2 - Math.acos(y / n), lon = Math.PI - 2 * Math.PI * u;
+  const local = [Math.cos(lat) * Math.sin(lon), Math.sin(lat), Math.cos(lat) * Math.cos(lon)];
+  const a = (DOME_ROTATE_Y * Math.PI) / 180, [lx, ly, lz] = local;
+  const world = [lx * Math.cos(a) + lz * Math.sin(a), ly, -lx * Math.sin(a) + lz * Math.cos(a)];
+  // Where the viewer drew the sun before this fix: three's own equirect frame, dome xform ignored.
+  const alpha = 2 * Math.PI * (u - 0.5);
+  const old = [Math.cos(lat) * Math.cos(alpha), Math.sin(lat), Math.cos(lat) * Math.sin(alpha)];
+  return { world, unrotated: local, old };
+})();
+const sunProbe = await page.evaluate((s) => ({
+  world: window.__app.probeEnv(s.world), unrotated: window.__app.probeEnv(s.unrotated), old: window.__app.probeEnv(s.old),
+}), sun);
 for (const v of ["gold", "chrome"]) {
   await page.evaluate((v) => window.__app.selectVariant(v), v);
   await page.waitForTimeout(1500);
@@ -73,6 +95,9 @@ const checks = [
   ["USD camera found", !!report.usdCamera],
   [`dome light became the environment (${report.env?.type})`, !!report.env],
   ["the dome is DomeLight_1, the schema Houdini 22 writes", report.env?.type === "DomeLight_1"],
+  [`dome sun where USD puts it, rotated ${DOME_ROTATE_Y} deg (radiance ${sunProbe.world.toFixed(1)}; ` +
+    `unrotated ${sunProbe.unrotated.toFixed(1)}, old viewer ${sunProbe.old.toFixed(1)})`,
+    sunProbe.world > 10 && sunProbe.unrotated < 5 && sunProbe.old < 5],
   ["variant switch applied", report.lastVariantSwitch?.option === "ember"],
   [`proxy shows, then hides again (${meshesBefore} -> ${meshesProxyOn} -> ${meshesProxyOff} meshes)`,
     meshesProxyOn > meshesBefore && meshesProxyOff === meshesBefore],

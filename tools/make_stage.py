@@ -261,6 +261,9 @@ dome.CreateTextureFileAttr(Sdf.AssetPath("./env/sky.hdr"))
 dome.CreateTextureFormatAttr(UsdLux.Tokens.latlong)
 dome.CreateIntensityAttr(1.0)
 dome.CreateExposureAttr(0.0)
+# Turned like a lighting TD turns an HDRI to place the sun. tests/browser/smoke.mjs looks for the sun
+# where this rotation should put it (DOME_ROTATE_Y there must match).
+dome.AddRotateYOp().Set(75.0)
 
 key = UsdLux.RectLight.Define(s, "/lights/key")
 key.CreateWidthAttr(2.0)

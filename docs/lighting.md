@@ -33,6 +33,10 @@ Point and spot lights get `decay = 2`, which is physical inverse-square falloff.
 
 **The dome becomes the environment, not a light.** The bridge loads the dome's `inputs:texture:file`, prefilters it with `PMREMGenerator` and sets it as `scene.environment` and `scene.background`. The dome's radiance L becomes `scene.environmentIntensity` and `scene.backgroundIntensity`. The background gets a slight blur (0.35) so it reads as a backdrop, not a sharp photo.
 
+**The dome's orientation follows USD.** USD reads a latlong image with the OpenEXR convention: the top row is +Y, longitude 0 (the image centre) faces +Z and longitude pi/2 faces +X. three.js puts the image centre at +X, so the bridge turns the environment 90 degrees about Y to match. It then applies the dome's own transform (the Dome Light LOP's **Rotate**), read from the delegate's light object, and for `DomeLight_1` its `poleAxis`: with the pole on Z (`Z`, or `scene` on a Z-up stage) it adds a 90 degree turn about X. The result goes to `scene.environmentRotation` and `scene.backgroundRotation`, and is re-applied every frame, so an animated dome turns too.
+
+The browser test checks this: it computes where USD puts the fixture sky's sun after the dome's 75 degree turn and measures the background there.
+
 The bridge reads `.hdr` only. An `.exr` dome is task T09 in `plan/tasks.json`, and the census warns about it.
 
 The texture path is resolved relative to the root layer. If a real export authors the dome in a sublayer, resolve against that layer's URL instead.

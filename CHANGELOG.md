@@ -4,6 +4,10 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+### Fixed
+
+- The dome's HDRI now faces the way USD says. The viewer applies USD's latlong convention (image centre at +Z), the dome's transform and `DomeLight_1`'s `poleAxis` to `scene.environmentRotation` and `scene.backgroundRotation`. Before, the dome's rotation was ignored and every HDRI sat 90 degrees off USD's convention. The fixture dome is now turned 75 degrees, and the browser test finds its sun where USD puts it.
+
 ## [0.1.3] - 2026-11-11
 
 ### Added

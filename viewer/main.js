@@ -88,7 +88,8 @@ async function readStage() {
         lights.push({ path, type,
           intensity: v("inputs:intensity"), exposure: v("inputs:exposure"), color: v("inputs:color"),
           width: v("inputs:width"), height: v("inputs:height"), radius: v("inputs:radius"),
-          angle: v("inputs:angle"), normalize: v("inputs:normalize"), texture: v("inputs:texture:file") });
+          angle: v("inputs:angle"), normalize: v("inputs:normalize"), texture: v("inputs:texture:file"),
+          poleAxis: v("poleAxis") });
       }
       const purpose = prim.GetAttribute("purpose");
       if (purpose?.IsValid?.() && purpose.HasAuthoredValue()) {
@@ -138,6 +139,65 @@ async function applyDome() {
   scene.backgroundBlurriness = 0.35;
   scene.environmentIntensity = L;
   scene.backgroundIntensity = L;
+  domeInfo = dome;
+  orientDome();
+}
+
+// Dome orientation. Three frames meet here:
+//   USD latlong (OpenEXR convention, the UsdLux DomeLight docs): longitude 0 points to +Z, longitude pi/2
+//     to +X, and longitude falls from +pi at the image's left edge, so the image centre faces +Z.
+//   three.js equirect (equirectUv in common.glsl): u = atan(z, x) / 2pi + 0.5, so the image centre faces +X.
+//   Same texel: USD +Z -> three +X, USD +X -> three -Z. That is a +90 degree turn about Y (USD_TO_THREE).
+// The dome's own xform comes from the delegate's light object, whose world matrix already includes the
+// delegate's Z-up correction on the root group. DomeLight_1 adds poleAxis: with the pole on Z ("Z", or
+// "scene" on a Z-up stage), latitude +-pi/2 is +-Z and longitude 0 is -Y: a +90 degree turn about X.
+// three looks the environment up with the inverse of environmentRotation, so environmentRotation is the
+// texture-to-world rotation: domeWorld * pole * USD_TO_THREE^-1.
+const USD_TO_THREE_INV = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
+const POLE_Z = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+const token = (s) => String(s ?? "").replace(/["']/g, "").trim();
+let domeInfo = null, domeObject = null;
+const _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
+function stageUpIsZ() {
+  const up = report.stage?.upAxis;
+  return (typeof up === "number" ? String.fromCharCode(up) : String(up ?? "Y")).toUpperCase().startsWith("Z");
+}
+function orientDome() {
+  if (!domeInfo || !envTexture) return;
+  if (!domeObject || !domeObject.parent) {
+    domeObject = null;
+    hydraRoot.traverse((o) => { if (!domeObject && o.isLight && o.userData.usdPath === domeInfo.path) domeObject = o; });
+  }
+  if (domeObject) { domeObject.updateWorldMatrix(true, false); domeObject.matrixWorld.decompose(_p, _q, _s); }
+  else _q.identity(); // no delegate object: the dome's xform is unknown, so assume none
+  const pole = token(domeInfo.poleAxis) || "scene";
+  const poleZ = domeInfo.type !== "DomeLight" && (pole === "Z" || (pole === "scene" && stageUpIsZ()));
+  if (poleZ) _q.multiply(POLE_Z);
+  _q.multiply(USD_TO_THREE_INV);
+  scene.environmentRotation.setFromQuaternion(_q);
+  scene.backgroundRotation.copy(scene.environmentRotation);
+  if (report.env) {
+    const r = scene.environmentRotation;
+    report.env.rotation = [r.x, r.y, r.z].map((a) => +THREE.MathUtils.radToDeg(a).toFixed(2));
+    report.env.poleAxis = pole; report.env.poleZ = poleZ; report.env.fromXform = !!domeObject;
+  }
+}
+
+// Test hook: average linear radiance of the background seen from the origin along a world direction,
+// through a narrow camera, with blur off. The browser test uses it to find the sun in the dome.
+function probeEnv(dir) {
+  const rt = new THREE.WebGLRenderTarget(8, 8, { type: THREE.FloatType });
+  const cam = new THREE.PerspectiveCamera(3, 1, 0.1, 10);
+  cam.lookAt(new THREE.Vector3(...dir));
+  const blur = scene.backgroundBlurriness, vis = [hydraRoot.visible, jsRoot.visible];
+  scene.backgroundBlurriness = 0; hydraRoot.visible = jsRoot.visible = false;
+  renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null);
+  scene.backgroundBlurriness = blur; [hydraRoot.visible, jsRoot.visible] = vis;
+  const px = new Float32Array(8 * 8 * 4);
+  renderer.readRenderTargetPixels(rt, 0, 0, 8, 8, px);
+  rt.dispose();
+  let sum = 0; for (let i = 0; i < px.length; i += 4) sum += Math.max(px[i], px[i + 1], px[i + 2]);
+  return sum / 64;
 }
 
 // USD light radiance (intensity * 2^exposure) times emitting area ~ luminous intensity (cd),
@@ -296,7 +356,7 @@ async function selectVariant(vs, opt) {
   report.lastVariantSwitch = { set: vs.set, option: opt, ms: Math.round(performance.now() - t) };
 }
 window.__app = { selectVariant: (opt) => selectVariant(composed.variantSets[0], opt), setRoute, loadJsRoute, setCamMode,
-  setProxy: toggleProxy, hydra };
+  setProxy: toggleProxy, hydra, probeEnv };
 
 // ------------------------------------------------------------------ inventory for the HUD/test
 function inventory() {
@@ -337,6 +397,7 @@ renderer.setAnimationLoop((now) => {
   hydra.update(dt);
   if (holdFrames) return;
   syncCamera();
+  orientDome(); // follows an animated dome; cheap when nothing moves
   if (controls.enabled) controls.update();
   applyPurposes();
   renderer.render(scene, camera);
