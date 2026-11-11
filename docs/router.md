@@ -41,3 +41,24 @@ Append `{"id", "title", "detail", "after"}` to `plan/tasks.json`. `after` lists 
 ## Jev setup
 
 The same key as the census, from the environment only: `TYPESAFE_API_KEY`. `TYPESAFE_URL` and `TYPESAFE_MODEL` override the endpoint and model if you need to.
+
+## Decisions
+
+**One question:** can an agent settle this design choice, or does it go to Joe?
+
+```
+python tools/decide.py plan/decisions/<id>.json --record plan/decisions.jsonl
+```
+
+A decision file states the decision, the constraints, the evidence and the options, plus any yes/no checks on the evidence. `plan/decisions/w3-in-memory-export.json` is the worked example.
+
+**Jev answers in one request.** Which option to choose is a Choice, with "neither" always offered. Whether the choice needs a judgment the facts don't settle is a Noul (a yes/no probability). Each check is another Noul.
+
+**Code owns the policy.** It acts on the probability of the chosen option, not on Jev's confidence, and it reads a Noul at or above 0.7 as yes and at or below 0.3 as no. Those are TypeSafe's documented starting points. **ADOPT** needs a choice other than "neither", a probability of at least 0.7, and a needs-a-person score of at most 0.3. Everything else is **ASK JOE**, including no key and a failed request, so nothing is adopted silently. The exit code is 0 for ADOPT and 1 for ASK JOE.
+
+**The record keeps the raw probabilities**, one JSON line per run, so the thresholds can change later without asking Jev again. Never run it on a decision Joe owns outright (scope, money, licensing, taste); those go straight to him.
+
+| Command | Use |
+|---|---|
+| `python tools/build_router.py plan/web-export-tasks.json` | Route the wave 2 tasks of the Web Export blueprint |
+| `python tools/decide.py <file> --json` | Print the full record instead of the report |
