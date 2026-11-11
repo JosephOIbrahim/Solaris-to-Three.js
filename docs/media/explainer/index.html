@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solaris to three.js explainer</title>
+  <!--
+    Source of docs/media/explainer.mp4 and docs/media/explainer-poster.png. render.mjs captures it.
+
+    Preview it in Chrome: index.html shows the poster frame, index.html?t=42 shows the frame at
+    42 seconds, and index.html?play plays it in real time. render.mjs opens index.html?render,
+    calls window.seek(t) for every frame and screenshots it.
+
+    The copy and the timing live in SCENES below, and every claim comes from README.md and docs/.
+    Each scene's length is computed from its words: a text stays on screen for 0.4 s per word
+    plus 1.5 s, so it can be read twice. The page refuses to run if that or the 75 to 110 second
+    length does not hold.
+
+    Fonts are SIL OFL and load from Google Fonts: Fraunces 600, Archivo 400, JetBrains Mono 400.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400&family=Fraunces:opsz,wght@9..144,600&family=JetBrains+Mono:wght@400&display=block">
+  <style>
+    :root {
+      --paper: #FAF8F4;
+      --text: #2E2B28;
+      --secondary: #5B554F;
+      --hairline: #D9D2C7;
+      --line: #927D70;          /* edges and node borders, as in docs/assets/mermaid-theme.md */
+      --accent: #C8321A;        /* vermilion: at most one element per scene */
+      --stone: #7096A7; --stone-tint: #DEE4E5;
+      --moss: #91A87B;  --moss-tint: #E5E8DC;
+      --ochre: #AE8B4C; --ochre-tint: #EBE2D2;
+      --clay: #AA6455;  --clay-tint: #EADAD4;
+      --umber: #927D70; --umber-tint: #E5DFDA;
+      --display: "Fraunces", Georgia, serif;
+      --body: "Archivo", Arial, sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--paper); }
+    body { overflow: hidden; font-synthesis: none; }
+
+    /* The 1920 x 1080 canvas. Every direct child is placed in pixels by the script. */
+    #frame {
+      position: relative; width: 1920px; height: 1080px; overflow: hidden;
+      background: var(--paper); color: var(--text); transform-origin: 0 0;
+      font: 400 34px/1 var(--body);
+    }
+    #frame > * { position: absolute; margin: 0; }
+    #edges { left: 0; top: 0; overflow: visible; }
+    .edge { fill: none; stroke: var(--line); stroke-width: 2.5px; }
+    .edge.dashed { stroke-dasharray: 10 9; }
+    .head { fill: var(--line); }
+
+    /* Running head: swatch, kicker and the hairline under it. */
+    .swatch { width: 22px; height: 22px; border-radius: 2px; }
+    .kicker {
+      left: 144px; top: 96px; white-space: nowrap; color: var(--secondary);
+      font: 400 28px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .kicker .num { margin-right: 30px; }
+    .hairline { left: 144px; top: 150px; width: 1632px; height: 2px; background: var(--hairline); }
+    .tick { height: 4px; width: 36px; background: var(--hairline); }
+
+    /* The one large statement per scene. */
+    .statement {
+      left: 144px; top: 196px; width: 1400px; white-space: pre-line;
+      font: 600 72px/1.2 var(--display); text-wrap: balance;
+    }
+
+    /* Diagram parts. Colours are set inline so a node can crossfade to the accent. */
+    .node {
+      display: flex; align-items: center; justify-content: center; white-space: nowrap;
+      border: 2.5px solid var(--line); border-radius: 8px; background: var(--paper);
+      font: 400 34px/1 var(--body);
+    }
+    .node.mono { font: 400 30px/1 var(--mono); }
+    .node.dashed { border-style: dashed; }
+    .label { font: 400 30px/1 var(--body); color: var(--secondary); white-space: nowrap; }
+    .tag {
+      font: 400 28px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--secondary); white-space: nowrap;
+    }
+    .tag.boxed { color: var(--text); background: var(--umber-tint); border: 2.5px solid var(--umber); border-radius: 6px; padding: 8px 12px 8px 14px; }
+    .chiprow { display: flex; gap: 14px; align-items: center; }
+    .chip {
+      display: inline-flex; align-items: center; height: 56px; padding: 0 22px;
+      border: 2.5px solid var(--stone); border-radius: 8px; background: var(--stone-tint);
+      font: 400 30px/1 var(--body); white-space: nowrap;
+    }
+    .chiprow .after { font: 400 30px/1 var(--body); margin-left: 12px; white-space: nowrap; }
+    .card { border: 2.5px solid var(--accent); border-radius: 8px; background: var(--paper); padding: 36px 30px; }
+    .code { margin: 0; font: 400 28px/1 var(--mono); white-space: nowrap; }
+    .code + .code { margin-top: 36px; }
+    .folder { border: 2.5px solid var(--accent); border-radius: 10px; padding: 40px 36px; }
+    .file { margin: 0; font: 400 32px/1 var(--mono); white-space: nowrap; }
+    .file + .file { margin-top: 36px; }
+    .verdict { font: 400 30px/1 var(--mono); letter-spacing: 0.04em; }
+
+    /* Product shots: the screenshot inside a hairline, never upscaled. */
+    .shot { border: 2px solid var(--hairline); background: var(--hairline); }
+    .shot img { display: block; width: 100%; height: 100%; }
+    .value { font: 400 44px/1 var(--body); white-space: nowrap; }
+
+    .step { display: flex; align-items: baseline; white-space: nowrap; }
+    .step .n { width: 120px; font: 600 56px/1 var(--display); }
+    .step .cmd { font: 400 36px/1 var(--mono); }
+    .step .txt { font: 400 36px/1 var(--body); }
+    .step .txt + .cmd { margin-left: 0.5ch; }
+    .link { font: 400 30px/1 var(--mono); color: var(--accent); white-space: nowrap; }
+    .note { width: 1400px; font: 400 34px/1.4 var(--body); color: var(--secondary); }
+
+    /* Title card: the lockup's proportions, as in docs/assets/src/social-preview.html. */
+    .title {
+      left: 144px; top: 420px;
+      --type: 136px;
+      --mark: calc(var(--type) * 78 / 48);
+      --inset: calc(var(--mark) / 16);
+      --gap: calc(var(--type) * 20 / 48);
+      --axis: calc(var(--mark) - 2 * var(--inset) + var(--gap));
+    }
+    .title .line { font: 600 var(--type)/1 var(--display); white-space: nowrap; }
+    .title .mark {
+      width: var(--mark); height: var(--mark); vertical-align: baseline;
+      /* the image's centre, the horizon, sits on the baseline; the scanlines hang below it */
+      margin: 0 calc(var(--gap) - var(--inset)) calc(var(--mark) / -2) calc(-1 * var(--inset));
+    }
+    .title .deck { margin: 40px 0 0 var(--axis); font: 400 54px/1 var(--body); white-space: nowrap; }
+    .endmark { width: 160px; height: 160px; }
+  </style>
+</head>
+<body>
+  <div id="frame" role="img" aria-label="Solaris to three.js, an explainer in ten scenes">
+    <svg id="edges" width="1920" height="1080" viewBox="0 0 1920 1080" aria-hidden="true"></svg>
+  </div>
+  <script>
+  (() => {
+    "use strict";
+
+    const FPS = 30;
+    const MIN_LENGTH = 75, MAX_LENGTH = 110;   // seconds
+    const POSTER_AT = 2.0;                     // the title card, fully built
+    const MARK = "../../assets/logo-mark-light.svg";
+    const SVGNS = "http://www.w3.org/2000/svg";
+    const frame = document.getElementById("frame");
+    const edges = document.getElementById("edges");
+    const params = new URLSearchParams(location.search);
+
+    const COLOR = {
+      paper: "#FAF8F4", text: "#2E2B28", line: "#927D70", accent: "#C8321A",
+      done: "#A79A90", hairline: "#D9D2C7",
+      stone: ["#DEE4E5", "#7096A7"], moss: ["#E5E8DC", "#91A87B"], ochre: ["#EBE2D2", "#AE8B4C"],
+      clay: ["#EADAD4", "#AA6455"], umber: ["#E5DFDA", "#927D70"],
+    };
+    const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const mix = (a, b, m) => `rgb(${rgb(a).map((v, i) => Math.round(v + (rgb(b)[i] - v) * m)).join(", ")})`;
+    const ACCENT_LOOK = { bg: COLOR.accent, border: COLOR.accent, fg: COLOR.paper };
+    // A node's colours, m of the way from its own look to the accent.
+    function paint(el, look, m = 0) {
+      el.style.background = mix(look.bg, ACCENT_LOOK.bg, m);
+      el.style.borderColor = mix(look.border, ACCENT_LOOK.border, m);
+      el.style.color = mix(look.fg, ACCENT_LOOK.fg, m);
+    }
+
+    // ---------------------------------------------------------------- reading time
+    // A text must stay on screen 0.4 s per word plus 1.5 s, so it can be read twice.
+    // Words are whitespace tokens. A token longer than 12 characters, such as a header
+    // name or a path, counts one word per 8 characters, so code is not under-timed.
+    function words(text) {
+      return text.trim().split(/\s+/).filter(Boolean)
+        .reduce((n, token) => n + (token.length > 12 ? Math.ceil(token.length / 8) : 1), 0);
+    }
+    const readTime = (text) => 0.4 * words(text) + 1.5;
+
+    // ---------------------------------------------------------------- the scenes
+    // One idea per scene: a kicker, one large statement and at most one diagram or shot.
+    // swatch is the section role: stone concept, clay risk, ochre decision, umber reference,
+    // moss action. Diagram builds are in seconds from the scene's start.
+    const SCENES = [
+      { id: "title", build: buildTitle },
+      // A statement breaks where its \n is, so every statement is two lines (scene 07 is one,
+      // to leave room for the shots) and every diagram starts at the same height.
+      { id: "s01", num: "01", kicker: "The stage", swatch: "stone", build: buildS01,
+        statement: "Karma reads the stage,\nnever your nodes." },
+      { id: "s02", num: "02", kicker: "Hydra", swatch: "stone", build: buildS02,
+        statement: "Hydra splits scene description\nfrom drawing." },
+      { id: "s03", num: "03", kicker: "The one idea", swatch: "stone", build: buildS03,
+        statement: "three.js becomes another\nHydra render delegate." },
+      { id: "s04", num: "04", kicker: "The server", swatch: "clay", build: buildS04,
+        statement: "Every web host must send\ntwo headers." },
+      { id: "s05", num: "05", kicker: "The lighting bridge", swatch: "stone", build: buildS05,
+        statement: "The dome becomes the environment,\nturned by its transform." },
+      { id: "s06", num: "06", kicker: "The web census", swatch: "ochre", build: buildS06,
+        statement: "One word\nbefore you open it." },
+      { id: "s07", num: "07", kicker: "What you see", swatch: "umber", build: buildS07, wide: true,
+        statement: "The fixture stage, live in the browser." },
+      { id: "s08", num: "08", kicker: "What to do", swatch: "moss", build: buildS08,
+        statement: "Fixture first,\nthen your export." },
+      { id: "s09", num: "09", kicker: "What's next", swatch: "umber", build: buildS09,
+        statement: "Next:\na Web Export LOP node." },
+      { id: "s10", num: "10", kicker: "The point", swatch: "stone", build: buildS10,
+        statement: "Real USD composes your stage\nin the browser, and three.js draws it." },
+    ];
+
+    // ---------------------------------------------------------------- building blocks
+    const entries = [];     // everything on the timeline
+    const accentEls = [];   // elements drawn in vermilion all the time they are visible
+    let scene = null;       // the scene being built
+
+    function make(tag, cls, parent = frame, ns = null) {
+      const el = ns ? document.createElementNS(ns, tag) : document.createElement(tag);
+      if (cls) el.setAttribute("class", cls);
+      parent.appendChild(el);
+      return el;
+    }
+    function put(el, x, y, w, h) {
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+      if (w != null) el.style.width = w + "px";
+      if (h != null) el.style.height = h + "px";
+      return el;
+    }
+    function write(tag, cls, text, parent = frame) {
+      const el = make(tag, cls, parent);
+      el.textContent = text;
+      return el;
+    }
+    // Puts el on the timeline. at and outAt are seconds from the owning scene's start;
+    // until names the scene whose end takes it off screen (default: its own scene).
+    // text is what the reading-time budget counts for the owning scene.
+    function show(el, o = {}) {
+      const e = {
+        el, scene: o.scene || scene.id, at: o.at ?? 0.15, outAt: o.outAt ?? null,
+        until: o.until || null, fi: o.fi ?? 0.35, fo: o.fo ?? 0.25, dim: o.dim ?? 1,
+        text: o.text || null, draw: o.draw || 0, len: o.len || 0, look: o.look || null, accents: [],
+      };
+      entries.push(e);
+      el.__entry = e;
+      return e;
+    }
+    function node(text, x, y, w, h, o = {}) {
+      const el = put(make("div", "node" + (o.mono ? " mono" : "") + (o.dashed ? " dashed" : "")), x, y, w, h);
+      write("span", null, text, el);
+      const look = o.role
+        ? { bg: COLOR[o.role][0], border: COLOR[o.role][1], fg: COLOR.text }
+        : { bg: COLOR.paper, border: COLOR.line, fg: COLOR.text };
+      const e = show(el, { ...o, text, look });
+      paint(el, look);
+      if (o.accent) e.accents.push({ scene: scene.id, at: e.at, fi: 0, fo: 0.25, until: null });
+      return el;
+    }
+    // Moves the accent onto an existing node for the scene being built.
+    function accent(el, at = 0.15) {
+      el.__entry.accents.push({ scene: scene.id, at, fi: 0.35, fo: 0.25, until: null });
+    }
+    function label(cls, text, x, y, o = {}) {
+      const el = put(write(o.tag || "p", cls, text), x, y);
+      show(el, { ...o, text });
+      return el;
+    }
+
+    // Edges: a polyline with rounded corners, drawn on from its start, with an arrowhead.
+    function pathD(pts, r = 16) {
+      let d = `M${pts[0][0]} ${pts[0][1]}`;
+      for (let i = 1; i < pts.length - 1; i++) {
+        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+        const l1 = Math.hypot(x1 - x0, y1 - y0), l2 = Math.hypot(x2 - x1, y2 - y1);
+        const k = Math.min(r, l1 / 2, l2 / 2);
+        d += ` L${x1 - (x1 - x0) / l1 * k} ${y1 - (y1 - y0) / l1 * k}`;
+        d += ` Q${x1} ${y1} ${x1 + (x2 - x1) / l2 * k} ${y1 + (y2 - y1) / l2 * k}`;
+      }
+      const [xn, yn] = pts[pts.length - 1];
+      return d + ` L${xn} ${yn}`;
+    }
+    function edge(pts, o = {}) {
+      const HEAD = 18, HALF = 8;
+      const [xa, ya] = pts[pts.length - 2], [xb, yb] = pts[pts.length - 1];
+      const L = Math.hypot(xb - xa, yb - ya), ux = (xb - xa) / L, uy = (yb - ya) / L;
+      const body = pts.slice(0, -1).concat([[xb - ux * (HEAD - 1), yb - uy * (HEAD - 1)]]);
+      const p = make("path", "edge" + (o.dashed ? " dashed" : ""), edges, SVGNS);
+      p.setAttribute("d", pathD(body));
+      const len = p.getTotalLength();
+      const draw = o.dashed ? 0 : 0.4;
+      if (!o.dashed) p.style.strokeDasharray = `${len} ${len}`;
+      const e = show(p, { ...o, fi: o.dashed ? 0.35 : 0, draw, len });
+      const h = make("path", "head", edges, SVGNS);
+      const bx = xb - ux * HEAD, by = yb - uy * HEAD;
+      h.setAttribute("d", `M${xb} ${yb} L${bx - uy * HALF} ${by + ux * HALF} L${bx + uy * HALF} ${by - ux * HALF} Z`);
+      show(h, { ...o, at: e.at + (draw ? draw * 0.85 : 0), fi: 0.15 });
+    }
+    // A multiplication sign drawn as two strokes: a diagram mark, not a word to read.
+    function times(cx, cy, o = {}) {
+      const r = 13;
+      const p = make("path", "edge", edges, SVGNS);
+      p.setAttribute("d", `M${cx - r} ${cy - r} L${cx + r} ${cy + r} M${cx + r} ${cy - r} L${cx - r} ${cy + r}`);
+      p.style.strokeWidth = "4px";
+      p.style.stroke = COLOR.text;
+      show(p, o);
+    }
+
+    // Swatch, kicker and statement: the same place in every numbered scene.
+    function common(s) {
+      const sw = put(make("div", "swatch"), 96, 99);
+      sw.style.background = COLOR[s.swatch][1];
+      show(sw);
+      const k = make("p", "kicker");
+      write("span", "num", s.num, k);
+      write("span", "label", s.kicker, k);
+      show(k, { text: s.kicker });
+      const st = write("h2", "statement", s.statement);
+      if (s.wide) st.style.width = "1632px";   // kept to one line, so the shots below can be large
+      show(st, { text: s.statement });
+    }
+
+    // ---------------------------------------------------------------- scene builds
+    function buildTitle() {
+      const g = make("div", "title");
+      const line = make("div", "line", g);
+      const mark = make("img", "mark", line);
+      mark.src = MARK;
+      mark.alt = "";
+      accentEls.push(mark);   // the sun is the title card's one vermilion
+      write("span", "wordmark", "Solaris to three.js", line);
+      write("p", "deck", "Publish Houdini Solaris stages to the web.", g);
+      show(g, { at: 0, fi: 0, text: "Solaris to three.js. Publish Houdini Solaris stages to the web." });
+    }
+
+    // Scenes 01 to 03 share one diagram that grows: the stage and Hydra, then the delegates.
+    const D = {};
+    const ROW = 520, NODE_H = 84, MID = ROW + NODE_H / 2, JOIN = 1214;
+    function buildS01(s) {
+      common(s);
+      const keep = { until: "s03" };
+      D.lop = node("Solaris network", 144, ROW, 320, NODE_H, { ...keep, at: 1.6 });
+      edge([[464, MID], [564, MID]], { ...keep, at: 2.0 });
+      D.stage = node("USD stage", 564, ROW, 230, NODE_H, { ...keep, at: 2.3, accent: true });
+      edge([[794, MID], [894, MID]], { ...keep, at: 2.7 });
+      D.hydra = node("Hydra", 894, ROW, 190, NODE_H, { ...keep, at: 3.0 });
+      edge([[1084, MID], [1294, MID]], { ...keep, at: 3.4 });
+      D.karma = node("Karma", 1294, ROW, 230, NODE_H, { ...keep, at: 3.7 });
+    }
+    function buildS02(s) {
+      common(s);
+      const keep = { until: "s03" };
+      accent(D.hydra);
+      label("label", "prims", 1112, 518, { ...keep, at: 1.0 });
+      edge([[JOIN, MID], [JOIN, MID + 108], [1294, MID + 108]], { ...keep, at: 1.2 });
+      D.storm = node("Storm", 1294, ROW + 108, 230, NODE_H, { ...keep, at: 1.5 });
+      label("tag", "Render delegates", 1294, 470, { ...keep, at: 2.0 });
+    }
+    function buildS03(s) {
+      common(s);
+      // From the trunk, like Storm's branch, so the line stays whole past Storm's rounded corner.
+      edge([[JOIN, MID], [JOIN, MID + 216], [1294, MID + 216]], { at: 0.9 });
+      D.three = node("three.js", 1294, ROW + 216, 230, NODE_H, { at: 1.2, accent: true });
+      label("label", "OpenUSD 26.05 in WebAssembly, by Needle", 144, 862, { at: 2.6 });
+      const row = put(make("div", "chiprow"), 144, 912);
+      ["payloads", "variants", "purpose", "instancing"].forEach((w, i) => {
+        show(write("span", "chip", w, row), { at: 3.6 + i * 0.2, text: w });
+      });
+      show(write("span", "after", "resolved by USD, not guessed", row), { at: 4.6, text: "resolved by USD, not guessed" });
+    }
+    function buildS04(s) {
+      common(s);
+      // The card is 2.5 + 36 + 28 + 36 + 28 + 36 + 2.5 = 169 px tall, so its middle is y 555.
+      const card = put(make("div", "card"), 144, 470, 780);
+      accentEls.push(card);   // act on this: the two headers
+      show(card, { at: 1.4 });
+      const h1 = "Cross-Origin-Opener-Policy: same-origin";
+      const h2 = "Cross-Origin-Embedder-Policy: require-corp";
+      show(write("p", "code", h1, card), { at: 1.7, text: h1 });
+      show(write("p", "code", h2, card), { at: 2.3, text: h2 });
+      const mid = 555;
+      edge([[924, mid], [1000, mid]], { at: 3.1 });
+      node("SharedArrayBuffer", 1000, mid - NODE_H / 2, 360, NODE_H, { at: 3.4, mono: true });
+      edge([[1360, mid], [1436, mid]], { at: 3.9 });
+      node("threaded runtime", 1436, mid - NODE_H / 2, 330, NODE_H, { at: 4.2 });
+    }
+    function buildS05(s) {
+      common(s);
+      const y = 470, mid = y + NODE_H / 2;
+      node("USD radiance", 144, y, 290, NODE_H, { at: 1.6, accent: true });
+      times(484, mid, { at: 2.0 });
+      node("emitting area", 534, y, 300, NODE_H, { at: 2.3 });
+      edge([[834, mid], [934, mid]], { at: 2.8 });
+      node("three.js candela", 934, y, 340, NODE_H, { at: 3.1 });
+    }
+    function buildS06(s) {
+      common(s);
+      label("tag", "Everything inside one folder", 144, 450, { at: 1.4 });
+      const folder = put(make("div", "folder"), 144, 504, 500);
+      accentEls.push(folder);   // act on this: keep everything inside the line
+      show(folder, { at: 1.4 });
+      show(write("p", "file", "shot.usda", folder), { at: 1.8, text: "shot.usda" });
+      const mid = 562;   // the shot.usda line: folder top 504 + border 2.5 + padding 40 + half a 32 px line
+      edge([[372, mid], [744, mid]], { at: 3.0, dashed: true });
+      node("../lib/asset.usda", 744, mid - NODE_H / 2, 354, NODE_H, { at: 3.3, mono: true, role: "clay" });
+      label("label", "404 on the web", 744, mid + 60, { at: 3.6 });
+      edge([[1098, mid], [1188, mid]], { at: 4.4 });
+      const verdicts = [["FIX FIRST", "clay", 1], ["GO, WITH NOTES", "ochre", 0.55], ["GO", "moss", 0.55]];
+      verdicts.forEach(([w, role, dim], i) => {
+        const el = node(w, 1188, mid - NODE_H / 2 + i * 96, 340, NODE_H, { at: 4.7, role, dim });
+        el.classList.add("verdict");
+      });
+    }
+    function buildS07(s) {
+      common(s);
+      const big = { x: 144, y: 320, w: 1152, h: 648 };     // 1280 x 720 at 0.9
+      const tall = { x: 144 + Math.round((1152 - 299) / 2), y: 320, w: 299, h: 648 };   // 390 x 844 at 0.77
+      const shots = [
+        { src: "assets/01-hydra-ember.png", box: big, group: "Look", value: "ember" },
+        { src: "assets/02-hydra-gold.png", box: big, group: "Look", value: "gold" },
+        { src: "assets/02-hydra-chrome.png", box: big, group: "Look", value: "chrome" },
+        { src: "assets/03-hydra-proxy-on.png", box: big, group: "Purpose", value: "show proxy" },
+        { src: "assets/06-phone-usd-cam.png", box: tall, group: "Phone", value: "USD cam" },
+      ];
+      // Hard cuts. Each shot holds until its caption has been on screen long enough to read
+      // twice, and at least 2 s. The last one runs to the end of the scene.
+      let at = 0.15;
+      const groups = {};
+      shots.forEach((sh, i) => {
+        const first = i === 0, last = i === shots.length - 1;
+        const hold = Math.max(2.0, readTime(sh.value)) + (first ? 0.35 / 2 : 0);
+        const win = { at, outAt: last ? null : at + hold, fi: first ? 0.35 : 0, fo: last ? 0.25 : 0 };
+        const box = put(make("div", "shot"), sh.box.x, sh.box.y, sh.box.w, sh.box.h);
+        const img = make("img", null, box);
+        img.src = sh.src;
+        img.alt = "";
+        show(box, win);
+        show(put(write("p", "value", sh.value), 1352, 366), { ...win, text: sh.value });
+        (groups[sh.group] ||= { from: at, fi: win.fi }).to = win.outAt;
+        if (last) s.min = at + readTime(sh.value) + 0.25 / 2;
+        at = win.outAt;
+      });
+      for (const [name, g] of Object.entries(groups)) {
+        label("tag", name, 1352, 320, { at: g.from, outAt: g.to, fi: g.fi, fo: g.to == null ? 0.25 : 0 });
+      }
+    }
+    function buildS08(s) {
+      common(s);
+      const steps = [
+        [["cmd", "npm ci"]],
+        [["cmd", "npm start"]],
+        [["txt", "Open"], ["cmd", "127.0.0.1:5180"]],
+        [["txt", "Export one folder"]],
+        [["txt", "Run the census"]],
+        [["txt", "Copy to"], ["cmd", "stages/<name>/"]],
+      ];
+      steps.forEach((parts, i) => {
+        const y = 450 + i * 84 + (i >= 3 ? 40 : 0);    // a pause between the fixture and your export
+        const row = put(make("div", "step"), 144, y);
+        const n = write("span", "n", String(i + 1).padStart(2, "0"), row);
+        if (i === 0) { n.style.color = COLOR.accent; accentEls.push(n); }   // start here
+        for (const [cls, text] of parts) write("span", cls, text, row);
+        show(row, { at: 1.4 + i * 0.45 + (i >= 3 ? 0.4 : 0), text: parts.map((p) => p[1]).join(" ") });
+      });
+    }
+    function buildS09(s) {
+      common(s);
+      const y = 534, mid = y + NODE_H / 2;
+      node("Solaris network", 144, y, 320, NODE_H, { at: 1.4 });
+      edge([[464, mid], [554, mid]], { at: 1.8 });
+      node("Web Export", 554, y, 280, NODE_H, { at: 2.1, dashed: true });
+      label("tag boxed", "Planned", 554, y - 68, { at: 2.4 });
+      edge([[834, mid], [924, mid]], { at: 2.9 });
+      node("USD folder, glTF, X3D, USDZ", 924, y, 540, NODE_H, { at: 3.2 });
+      const link = label("link", "plan/web-export-blueprint.md", 144, y + 156, { at: 3.8 });
+      accentEls.push(link);   // act on this: read the plan
+    }
+    function buildS10(s) {
+      common(s);
+      label("note", "Needle runtime: PolyForm Noncommercial 1.0.0, local evaluation only.", 144, 420, { at: 1.2 });
+      // The circle, not the image box, sits on the text axis: the mark has a 1/16 inset.
+      const mark = put(make("img", "endmark"), 144 - 10, 556);
+      mark.src = MARK;
+      mark.alt = "";
+      accentEls.push(mark);   // the sun is the end card's one vermilion
+      show(mark, { at: 1.8 });
+    }
+
+    // ---------------------------------------------------------------- build, then time it
+    const hairline = make("div", "hairline");
+    const ticks = Array.from({ length: 10 }, (_, i) => put(make("div", "tick"), 1326 + i * 46, 1014));
+    for (const s of SCENES) { scene = s; s.build(s); }
+    scene = SCENES[1];
+    show(hairline, { scene: "s01", until: "s10" });
+
+    const byId = Object.fromEntries(SCENES.map((s) => [s.id, s]));
+    const LAST = SCENES[SCENES.length - 1];
+
+    // A scene lasts long enough for all its new words to be read twice, and for every one
+    // of its texts to be on screen that long after it appears.
+    for (const s of SCENES) {
+      const own = entries.filter((e) => e.scene === s.id && e.text);
+      s.words = own.reduce((n, e) => n + words(e.text), 0);
+      let need = 0.4 * s.words + 1.5;
+      for (const e of own) {
+        if (e.outAt != null || (e.until && e.until !== s.id)) continue;
+        need = Math.max(need, e.at + e.fi / 2 + readTime(e.text) + (s === LAST ? 0 : e.fo / 2));
+      }
+      need = Math.max(need, s.min || 0);
+      s.frames = Math.ceil((need + 0.5 / FPS) * FPS);   // whole frames, so every cut lands on one
+      s.dur = s.frames / FPS;
+    }
+    let clock = 0;
+    for (const s of SCENES) { s.start = clock; clock += s.dur; s.end = clock; }
+    const FRAMES = SCENES.reduce((n, s) => n + s.frames, 0);
+    const DURATION = FRAMES / FPS;
+
+    function resolve(w, owner) {
+      const s = byId[w.scene || owner];
+      w.tin = s.start + w.at;
+      const u = byId[w.until || w.scene || owner];
+      w.tout = w.outAt != null ? s.start + w.outAt : (u === LAST ? Infinity : u.end);
+    }
+    for (const e of entries) {
+      resolve(e);
+      for (const a of e.accents) resolve(a, e.scene);
+    }
+
+    // ---------------------------------------------------------------- seek
+    const ramp = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+    function windowAlpha(w, t) {
+      if (t < w.tin || t >= w.tout) return 0;
+      let a = 1;
+      if (w.fi > 0) a = Math.min(a, ramp((t - w.tin) / w.fi));
+      if (w.fo > 0 && Number.isFinite(w.tout)) a = Math.min(a, ramp((w.tout - t) / w.fo));
+      return a;
+    }
+    const alpha = (e, t) => windowAlpha(e, t) * e.dim;
+    const accentLevel = (e, t) => e.accents.reduce((m, w) => Math.max(m, windowAlpha(w, t)), 0);
+
+    function sceneIndexAt(t) {
+      let k = 0;
+      while (k < SCENES.length - 1 && t >= SCENES[k].end) k++;
+      return k;
+    }
+
+    // Draws the frame at time t, in seconds. It reads nothing but t, so any frame can be
+    // drawn in any order. Returns the scene id.
+    function seek(t) {
+      t = Math.min(Math.max(Number(t) || 0, 0), DURATION);
+      for (const e of entries) {
+        e.el.style.opacity = alpha(e, t).toFixed(4);
+        if (e.draw) e.el.style.strokeDashoffset = (e.len * (1 - ramp((t - e.tin) / e.draw))).toFixed(2);
+        if (e.accents.length) paint(e.el, e.look, accentLevel(e, t));
+      }
+      const k = sceneIndexAt(t) - 1;   // the title card is before scene 01
+      ticks.forEach((tk, i) => {
+        tk.style.background = i < k ? COLOR.done : i === k ? COLOR.text : COLOR.hairline;
+      });
+      return SCENES[k + 1].id;
+    }
+
+    // ---------------------------------------------------------------- self-checks
+    // Every element with its own text, and how visible it is at time t (its own fade
+    // times every ancestor's).
+    const textEls = [...frame.querySelectorAll("*")].filter((el) =>
+      [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim()));
+    function visibility(el, t) {
+      let v = 1;
+      for (let p = el; p && p !== frame; p = p.parentElement) if (p.__entry) v *= alpha(p.__entry, t);
+      return v;
+    }
+
+    function timingProblems() {
+      const out = [];
+      if (DURATION < MIN_LENGTH || DURATION > MAX_LENGTH) {
+        out.push(`the video is ${DURATION.toFixed(2)} s; it must be ${MIN_LENGTH} to ${MAX_LENGTH} s`);
+      }
+      for (const s of SCENES) {
+        const need = 0.4 * s.words + 1.5;
+        if (s.dur + 1e-6 < need) out.push(`${s.id}: ${s.words} words need ${need.toFixed(2)} s, it has ${s.dur.toFixed(2)} s`);
+      }
+      for (const el of textEls) {
+        let seen = 0;
+        for (let i = 0; i < FRAMES; i++) if (visibility(el, i / FPS) >= 0.5) seen++;
+        const need = readTime(el.textContent);
+        if (seen / FPS + 1e-6 < need) {
+          out.push(`"${el.textContent.trim()}" is on screen ${(seen / FPS).toFixed(2)} s; it needs ${need.toFixed(2)} s`);
+        }
+      }
+      for (let i = 0; i < FRAMES; i++) {
+        const t = i / FPS;
+        const lit = entries.filter((e) => e.accents.length && accentLevel(e, t) >= 0.5 && alpha(e, t) >= 0.5).length
+          + accentEls.filter((el) => visibility(el, t) >= 0.5).length;
+        if (lit > 1) { out.push(`${lit} vermilion elements at ${t.toFixed(2)} s; the limit is one`); break; }
+      }
+      return out;
+    }
+
+    // Layout, checked at the end of each scene once the fonts are in: everything inside the
+    // title-safe area, no text running into other text or into a box it is not part of,
+    // and every node's label inside its node.
+    function layoutProblems() {
+      const out = [];
+      const saved = frame.style.transform;
+      frame.style.transform = "none";
+      const f = frame.getBoundingClientRect();
+      const rel = (r) => ({ l: r.left - f.left, t: r.top - f.top, r: r.right - f.left, b: r.bottom - f.top });
+      const hit = (a, b) => a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
+      const name = (el) => `"${el.textContent.trim().slice(0, 40)}"`;
+      const blocks = [...frame.querySelectorAll(".node, .chip, .card, .folder, .shot, .tag.boxed")];
+      for (const s of SCENES) {
+        const t = s === LAST ? DURATION - 0.05 : s.end - 0.3;
+        seek(t);
+        const lines = [];
+        for (const el of textEls) {
+          if (visibility(el, t) < 0.5) continue;
+          for (const n of el.childNodes) {
+            if (n.nodeType !== Node.TEXT_NODE || !n.textContent.trim()) continue;
+            const range = document.createRange();
+            range.selectNodeContents(n);
+            for (const r of range.getClientRects()) lines.push({ el, box: rel(r) });
+          }
+        }
+        const boxes = blocks.filter((el) => visibility(el, t) >= 0.5).map((el) => ({ el, box: rel(el.getBoundingClientRect()) }));
+        for (const it of [...lines, ...boxes]) {
+          const b = it.box;
+          if (b.l < 96 || b.t < 54 || b.r > 1824 || b.b > 1026) out.push(`${s.id}: ${name(it.el)} leaves the title-safe area`);
+        }
+        for (let i = 0; i < lines.length; i++) {
+          for (let j = i + 1; j < lines.length; j++) {
+            const a = lines[i], b = lines[j];
+            if (a.el === b.el || a.el.contains(b.el) || b.el.contains(a.el)) continue;
+            if (hit(a.box, b.box)) out.push(`${s.id}: ${name(a.el)} runs into ${name(b.el)}`);
+          }
+          for (const bx of boxes) {
+            if (bx.el.contains(lines[i].el)) {
+              const a = lines[i].box, c = bx.box;
+              if (bx.el.classList.contains("node") && (a.l < c.l + 6 || a.r > c.r - 6)) out.push(`${s.id}: ${name(lines[i].el)} overflows its node`);
+            } else if (hit(lines[i].box, bx.box)) out.push(`${s.id}: ${name(lines[i].el)} runs into a box`);
+          }
+        }
+        for (let i = 0; i < boxes.length; i++) {
+          for (let j = i + 1; j < boxes.length; j++) {
+            const a = boxes[i], b = boxes[j];
+            if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+            if (hit(a.box, b.box)) out.push(`${s.id}: two boxes overlap, ${name(a.el)} and ${name(b.el)}`);
+          }
+        }
+      }
+      frame.style.transform = saved;
+      return [...new Set(out)];
+    }
+
+    function table() {
+      return SCENES.map((s) => ({
+        scene: s.id, kicker: s.kicker || "(title)", words: s.words,
+        needs: +(0.4 * s.words + 1.5).toFixed(2), seconds: +s.dur.toFixed(2), starts: +s.start.toFixed(2),
+      }));
+    }
+
+    window.DURATION = DURATION;
+    window.seek = seek;
+    window.explainer = {
+      FPS, DURATION, FRAMES, POSTER_AT, table, seek,
+      check: () => [...timingProblems(), ...layoutProblems()],
+    };
+
+    if (params.has("render")) {
+      seek(0);
+    } else {
+      const fit = () => {
+        const k = Math.min(innerWidth / 1920, innerHeight / 1080);
+        frame.style.transform = k < 1 ? `scale(${k})` : "";
+      };
+      addEventListener("resize", fit);
+      fit();
+      if (params.has("play")) {
+        const t0 = performance.now();
+        const tick = (now) => { seek(((now - t0) / 1000) % DURATION); requestAnimationFrame(tick); };
+        requestAnimationFrame(tick);
+      } else {
+        seek(params.has("t") ? Number(params.get("t")) : POSTER_AT);
+      }
+    }
+
+    // Fail loudly: a timing problem stops the page, so render.mjs cannot write a frame.
+    const late = timingProblems();
+    if (late.length) throw new Error("explainer timing:\n  " + late.join("\n  "));
+  })();
+  </script>
+</body>
+</html>
