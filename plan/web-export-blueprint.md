@@ -216,7 +216,7 @@ Check: `python scripts/install_package.py --dry-run` prints the target path and 
 
 **M5. The HDA. (L)**
 `scripts/build_hda.py`, run with hython **22.0.400**, creates `houdini/otls/web_export.hda`: a LOP subnet HDA `mythandlogic::web_export::1.0`, one input, tab menu "Web Export". Parameters: Output Folder, Formats (toggle per format; only USD Folder enabled in v0.2), the seven Web Settings, buttons **Check**, **Export**, **Preview**. Callbacks call `webexport.hou_node` and nothing else. Check shows `render_text()` in a read-only multi-line string parm and sets a node warning or error by verdict. Preview starts `node server/serve.mjs` if port 5180 is free and opens the default browser.
-Check: `hython tests/hou/test_hda.py` under 22.0.400, 22.0.459 and 22.0.466: installs the HDA, builds a LOP net that loads the fixture stage, presses Check (verdict GO), presses Export (folder exists, census GO). The same script run headless is the batch path, so this also proves hython export.
+Check: `hython tests/hou/test_hda.py` under 22.0.400, 22.0.492 and 22.0.466 (22.0.492 replaces 22.0.459, which is not installed; Joe, 2026-11-11): installs the HDA, builds a LOP net that loads the fixture stage, presses Check (verdict GO), presses Export (folder exists, census GO). The same script run headless is the batch path, so this also proves hython export.
 
 **M6. Card and release. (S)**
 `docs/web-export.md` operator's card (install, the three buttons, reading the report, batch use). README tools table and repo map updated. Bump to 0.2.0, release with `python tools/release.py`.
@@ -250,7 +250,8 @@ Nobody has confirmed these. The mission that touches one must verify it first an
 3. Whether Houdini's own glTF output can take a LOP stage directly (M7 spike).
 4. How MaterialX networks authored by Karma expose a usable base colour without baking (M7, M8).
 5. Whether three's WebGPU renderer can run Needle's MaterialX materials. Not needed before v0.5.
-6. Live Jev calls. All Jev paths are tested against a local stand-in only.
+6. Live Jev calls. All Jev paths are tested against a local stand-in only. **Verified 2026-11-11:** the build router and `tools/decide.py` both returned typed answers from `jev-latest` in live requests.
+7. A LOP node's stage has an anonymous, in-memory root layer, and the USD-folder writer blocks it as an unsaved layer, so M5's Check cannot pass on a live LOP stage until W3 lands. **Decided 2026-11-11** (`plan/decisions/w3-in-memory-export.json`, Jev ADOPT at the threshold, Joe may veto): merge the layer stack with `UsdUtils.FlattenLayerStack`, stage it to a file, and hand that file to the existing USD-folder writer. Do not weaken the M5 check to get past it.
 
 ## 7. Guardrails
 
@@ -265,9 +266,13 @@ Nobody has confirmed these. The mission that touches one must verify it first an
 
 | Decision | Choice | Whose call | Status |
 |---|---|---|---|
-| Where it lives | Standalone in `Solaris-to-Three.js`; Synapse may call it | Claude proposed | **Joe to confirm** |
+| Where it lives | Standalone in `Solaris-to-Three.js`; Synapse may call it | Claude proposed, Joe confirmed 2026-11-11 | settled |
 | Node form | LOP HDA at the end of the network | Joe ("add the WEB EXPORT node at the end of a network") | settled |
 | Formats | USD folder, glTF, X3D, USDZ, then splats | Joe (X3D required) | settled |
 | Workflow | Straight to main from the workstation | Joe | settled |
 | Design system reuse | Copy from Synapse at a pinned commit, not a shared package | Claude default: it leaves Synapse untouched during the demo push | **Joe to confirm** |
 | glTF writer route | Pure Python unless the M7 spike says otherwise | Claude default | open until M7 |
+| HDA inputs | `min_num_inputs=1`, so an unwired Web Export node shows an error | Joe, 2026-11-11 | settled |
+| M5 check builds | 22.0.400, 22.0.492 and 22.0.466 (22.0.459 is not installed) | Joe, 2026-11-11 | settled |
+| Explainer video | Silent, no text-to-speech service | Joe, 2026-11-11 | settled |
+| In-memory LOP export (W3) | Flatten the layer stack, stage it to a file, reuse the USD-folder writer | Jev ADOPT at the threshold, 2026-11-11 | settled unless Joe vetoes |

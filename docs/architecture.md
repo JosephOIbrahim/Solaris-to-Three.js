@@ -67,4 +67,4 @@ The viewer carries a second route for comparison. The **Hydra route** is the mai
 
 Verified in headless Chromium with software rendering, on the synthetic fixture stage: payloads over HTTP, live variant switching, purpose toggling, `PointInstancer`, OpenSubdiv refinement, the USD camera with phone framing, MaterialX `standard_surface` and OpenPBR, UsdPreviewSurface and time samples. `npm run test:browser` repeats those checks.
 
-Not yet verified: a real GPU, Windows, a real Karma export and live calls to Jev. Those are tasks T02 and T03 in [`plan/tasks.json`](../plan/tasks.json).
+Verified since then: Joe's RTX 4090 under Windows (T02, see [CHANGELOG](../CHANGELOG.md) 0.1.2), and live calls to Jev (2026-11-11, through the build router and `tools/decide.py`). Not yet verified: a real Karma export, task T03 in [`plan/tasks.json`](../plan/tasks.json).

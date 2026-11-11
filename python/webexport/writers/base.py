@@ -10,7 +10,7 @@ from ..report import LossReport
 if TYPE_CHECKING:
     from pxr import Usd
 
-    from ..inventory import Inventory  # owned by a later mission; named, never imported here
+    from ..inventory import Inventory  # inventory.py (M1); named, never imported here
     from ..settings import WebSettings
 
 

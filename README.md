@@ -123,8 +123,10 @@ The full walk-through is in [docs/architecture.md](docs/architecture.md).
 | `tools/make_stage.py` | Rebuilds the Solaris-shaped fixture stage | `pxr`, `numpy` |
 | `tools/make_dirty_stage.py` | Rebuilds the fixture with eight planted problems | `pxr` |
 | `tools/make_escape_stage.py` | Rebuilds the fixture that points outside its export folder | `pxr` |
+| `tools/make_websettings_stage.py` | Rebuilds the fixture whose `/WebSettings` sets a title and hides the HUD | `pxr` |
+| `tools/decide.py` | Can an agent settle this design choice, or does it go to Joe? Jev judges, code decides ADOPT or ASK JOE. See [docs/router.md](docs/router.md). | Python 3 |
 
-Jev is optional everywhere. Set `TYPESAFE_API_KEY` in your environment to turn it on; without it, the census and the router still run and say so.
+Jev is optional everywhere. Set `TYPESAFE_API_KEY` in your environment to turn it on; without it, the census and the router still run and say so, and `decide.py` sends every decision to Joe.
 
 ---
 
@@ -133,19 +135,23 @@ Jev is optional everywhere. Set `TYPESAFE_API_KEY` in your environment to turn i
 **Start here:** `viewer/main.js` for the viewer, `server/serve.mjs` for the headers, and `stages/` for your own exports.
 
 <details>
-<summary>The full map, 13 entries</summary>
+<summary>The full map, 17 entries</summary>
 
 ```
 server/serve.mjs          static server: COOP/COEP headers, four mounts, no traversal
 viewer/index.html         import map (no bundler) and the HUD
 viewer/main.js            Hydra route, USDLoader route, lighting bridge, USD camera, variants
-tools/                    census, router, Jev client, fixture builders
+tools/                    census, router, decisions, Jev client, fixture builders
+python/webexport/         Web Export core (pure pxr): report, settings, inventory, USD-folder profile and writer
+packages/                 the Houdini package file for Web Export
+scripts/                  install_package.py: deploys the package into your Houdini prefs
+houdini/                  HOUDINI_PATH root for the Web Export HDA (built in M5)
 fixtures/stage/           Solaris-shaped test stage: shot.usda, hero/asset.usda, env/sky.hdr
 fixtures/stage-flat/      the same asset flattened to .usdz for three's own USDLoader
 fixtures/stage-dirty/     a stage with eight planted problems, for the census
 fixtures/stage-escape/    an export that points outside its own folder, for the census
 stages/                   your exports go here (git-ignored)
-plan/                     the 16 roadmap tasks, the router's reference labels, the Web Export blueprint
+plan/                     roadmap tasks, the Web Export blueprint and its wave 2 tasks, recorded decisions
 tests/                    Python unit tests and a local Jev stand-in
 tests/browser/            headless Chromium smoke test and screenshots
 docs/                     architecture, versions, lighting, gotchas, operator's cards, brand assets

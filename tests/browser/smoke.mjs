@@ -73,7 +73,8 @@ await page.evaluate(() => window.__app.setCamMode(true));
 await page.evaluate(async () => { await window.__app.loadJsRoute(); window.__app.setRoute("js"); });
 await page.waitForTimeout(1500);
 await shot(page, "05-usdloader-js");
-const report = await page.evaluate(() => ({ ...window.__report, inventoryNow: window.__inventory() }));
+const report = await page.evaluate(() => ({ ...window.__report, inventoryNow: window.__inventory(),
+  pageTitle: document.title, hudHeading: document.querySelector("#hud h1")?.textContent }));
 await page.close();
 
 const phone = await open({ width: 390, height: 844 });
@@ -115,10 +116,12 @@ const checks = [
   [`proxy shows, then hides again (${meshesBefore} -> ${meshesProxyOn} -> ${meshesProxyOff} meshes)`,
     meshesProxyOn > meshesBefore && meshesProxyOff === meshesBefore],
   ["USDLoader route loaded meshes", report.jsRoute?.meshes > 0],
-  [`/WebSettings title applied (document.title = "${ws.title}")`, ws.title === WS_TITLE],
+  [`/WebSettings title applied (document.title = "${ws.title}")`, ws.title === WS_TITLE && ws.report?.applied?.titleSource === "web:title"],
   [`/WebSettings showHud = false hides #hud (display ${ws.hudDisplay})`, ws.hudDisplay === "none"],
   ["/WebSettings stage loaded clean, dome intact", ws.errors.length === 0 && ws.env],
-  ["a stage with no /WebSettings keeps its defaults", report.webSettings?.read?.present === false && report.webSettings.applied.title === undefined],
+  ["a stage with no /WebSettings keeps its defaults", report.webSettings?.read?.present === false && report.webSettings.applied.showHud === undefined],
+  [`no web:title falls back to the stage file name (title "${report.pageTitle}", heading "${report.hudHeading}")`,
+    report.pageTitle === "shot.usda" && report.hudHeading === "shot.usda" && report.webSettings?.applied?.titleSource === "stage file name"],
 ];
 console.log("---- checks ----");
 for (const [name, ok] of checks) console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);

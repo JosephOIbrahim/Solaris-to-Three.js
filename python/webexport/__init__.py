@@ -2,7 +2,7 @@
 
 The contracts live in report.py (LossItem, LossReport), profiles/base.py (Profile),
 writers/base.py (Writer, ExportResult) and settings.py (WebSettings). Importing the
-package does not import pxr; only settings.py needs it.
+package itself does not import pxr; the modules that read or write stages do.
 """
 from .report import LossItem, LossReport, verdict_for
 

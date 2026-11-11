@@ -58,7 +58,6 @@ Headless Chromium with SwiftShader can take minutes on the first draw. The brows
 
 These came from an independent review and are tracked as tasks in `plan/tasks.json`.
 
-- The prototype has never run on Windows or on a real GPU (T02).
 - No real Karma export has been checked yet (T03).
 - Only `/key` lights cast shadows (T08).
 - The dome bridge reads `.hdr` only (T09).

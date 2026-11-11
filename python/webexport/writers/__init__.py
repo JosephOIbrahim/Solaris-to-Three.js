@@ -1,1 +1,1 @@
-"""One format is one Writer: how to write it. Concrete writers arrive in later missions."""
+"""One format is one Writer: how to write it. usd_folder.py is the first."""

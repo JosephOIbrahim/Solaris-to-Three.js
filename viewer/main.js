@@ -135,11 +135,14 @@ async function readWebSettings() {
 const webSettings = await readWebSettings();
 report.webSettings = { read: webSettings, applied: {} };
 const applied = report.webSettings.applied;
-if (webSettings.title) {
-  document.title = webSettings.title;
-  document.querySelector("#hud h1").textContent = webSettings.title;
-  applied.title = webSettings.title;
-}
+// web:title, else the stage file name (blueprint 4.5). Same rule as python/webexport/settings.py:
+// fall back only when web:title isn't authored; an authored title wins, even an empty one.
+const stageFileName = decodeURIComponent(new URL(STAGE_URL).pathname.split("/").pop() || "");
+const title = webSettings.title ?? stageFileName;
+document.title = title;
+document.querySelector("#hud h1").textContent = title;
+applied.title = title;
+applied.titleSource = webSettings.title != null ? "web:title" : "stage file name";
 if (!webSettings.showHud) { document.getElementById("hud").style.display = "none"; applied.showHud = false; }
 renderer.toneMappingExposure = 2 ** webSettings.exposureOffset;
 applied.exposureOffset = webSettings.exposureOffset;

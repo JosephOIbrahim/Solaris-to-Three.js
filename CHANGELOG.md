@@ -14,9 +14,13 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 - A visual identity in `docs/assets/`: a logo mark (a vermilion sun on the horizon above three hairline scanlines) as light and dark SVG, wordmark lockups and a 1280 x 640 social preview rendered from HTML by `docs/assets/src/render.mjs`, five 11 px heading swatches, and a Mermaid theme that reads on GitHub's light and dark backgrounds.
 - README rewritten for calm reading, with a current status and the explainer video; both Mermaid diagrams take the house theme and now show the census catching files outside the export folder and the dome oriented by its transform and `poleAxis`.
 - `docs/media/explainer.mp4`, a silent 1 minute 47 second explainer in the house style, with its poster. `docs/media/explainer/` holds the page it is drawn from and `render.mjs`, which re-renders it and writes nothing if a font, an image, the reading time or the encoded file is off.
+- `tools/decide.py` settles one design decision with Jev and code: Jev judges the options, whether the choice needs Joe, and any evidence checks in one request, and code adopts only above TypeSafe's documented thresholds, otherwise it asks Joe. `plan/decisions.jsonl` keeps the raw probabilities. The first decision, how to export an in-memory LOP stage, is recorded. `plan/web-export-tasks.json` holds the wave 2 tasks for the build router.
 
 ### Fixed
 
+- When `/WebSettings` has no `web:title`, the viewer now titles the page and the HUD with the stage file name, as blueprint section 4.5 says, and records where the title came from. A browser check covers it.
+- `docs/architecture.md` and `docs/gotchas.md` no longer say the prototype hasn't met a real GPU or Windows; it ran on the RTX 4090 in 0.1.2 (T02). Live Jev calls are now verified too.
+- The Web Export blueprint records Joe's decisions of 2026-11-11 (it lives in this repo, `min_num_inputs=1`, the M5 check on 22.0.400, 22.0.492 and 22.0.466, a silent video) and two section 6 results: live Jev calls work, and a LOP stage's in-memory root needs the W3 export path before M5's Check can pass.
 - The dome's HDRI now faces the way USD says. The viewer applies USD's latlong convention (image centre at +Z), the dome's transform and `DomeLight_1`'s `poleAxis` to `scene.environmentRotation` and `scene.backgroundRotation`. Before, the dome's rotation was ignored and every HDRI sat 90 degrees off USD's convention. The fixture dome is now turned 75 degrees, and the browser test finds its sun where USD puts it.
 
 ## [0.1.3] - 2026-11-11
