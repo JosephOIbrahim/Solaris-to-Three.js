@@ -108,6 +108,42 @@ async function readStage() {
   });
 }
 const composed = await readStage();
+
+// /WebSettings (blueprint 4.5): viewer settings that travel in the stage. A missing prim or attribute
+// means the default; null means "no authored value", so the viewer's own default rule applies.
+async function readWebSettings() {
+  return hydra.editStage((stage) => {
+    const prim = stage.GetPrimAtPath("/WebSettings");
+    const out = { present: !!(prim && prim.IsValid?.()), title: null, camera: null, hudVariantSets: null,
+      showProxy: false, backgroundBlur: 0.35, exposureOffset: 0, showHud: true };
+    if (!out.present) return out;
+    const raw = (n) => { const a = prim.GetAttribute(n); return a?.IsValid?.() && a.HasAuthoredValue() ? a.GetValueString() : null; };
+    const str = (n) => { const v = raw(n); return v == null ? null : String(v).replace(/^@|@$/g, "").replace(/^"|"$/g, ""); };
+    const bool = (n, d) => { const v = raw(n); return v == null ? d : /^(1|true)$/i.test(String(v).trim()); };
+    const flt = (n, d) => { const v = raw(n); const x = parseFloat(String(v ?? "").replace(/[()]/g, "")); return Number.isFinite(x) ? x : d; };
+    const arr = (n) => { const v = raw(n); return v == null ? null : String(v).replace(/^\s*\[|\]\s*$/g, "").split(",").map((x) => x.trim().replace(/^["']|["']$/g, "")).filter(Boolean); }; // GetValueString gives [a, b]: set names are identifiers, no commas
+    out.title = str("web:title");
+    out.camera = str("web:camera");
+    out.hudVariantSets = arr("web:hudVariantSets");
+    out.showProxy = bool("web:showProxy", false);
+    out.backgroundBlur = flt("web:backgroundBlur", 0.35);
+    out.exposureOffset = flt("web:exposureOffset", 0);
+    out.showHud = bool("web:showHud", true);
+    return out;
+  });
+}
+const webSettings = await readWebSettings();
+report.webSettings = { read: webSettings, applied: {} };
+const applied = report.webSettings.applied;
+if (webSettings.title) {
+  document.title = webSettings.title;
+  document.querySelector("#hud h1").textContent = webSettings.title;
+  applied.title = webSettings.title;
+}
+if (!webSettings.showHud) { document.getElementById("hud").style.display = "none"; applied.showHud = false; }
+renderer.toneMappingExposure = 2 ** webSettings.exposureOffset;
+applied.exposureOffset = webSettings.exposureOffset;
+applied.backgroundBlur = webSettings.backgroundBlur;
 report.lights = composed.lights;
 report.variantSets = composed.variantSets;
 
@@ -136,7 +172,7 @@ async function applyDome() {
   }
   scene.environment = envTexture;
   scene.background = envTexture;
-  scene.backgroundBlurriness = 0.35;
+  scene.backgroundBlurriness = webSettings.backgroundBlur;
   scene.environmentIntensity = L;
   scene.backgroundIntensity = L;
   domeInfo = dome;
@@ -237,8 +273,14 @@ applyBridge();
 mark("bridged");
 
 // ------------------------------------------------------------------ USD camera
-let usdCam = null;
+let usdCam = null, cameraNote = "";
 hydraRoot.traverse((o) => { if (!usdCam && o.isCamera && o.userData.usdTypeName === "Camera") usdCam = o; });
+if (webSettings.camera) {
+  let want = null;
+  hydraRoot.traverse((o) => { if (!want && o.isCamera && o.userData.usdTypeName === "Camera" && o.userData.usdPath === webSettings.camera) want = o; });
+  if (want) { usdCam = want; applied.camera = webSettings.camera; }
+  else { cameraNote = `\nweb:camera ${webSettings.camera} not found: using the default camera.`; applied.camera = null; }
+}
 report.usdCamera = usdCam ? { path: usdCam.userData.usdPath, fov: +usdCam.fov.toFixed(2), aspect: +usdCam.aspect.toFixed(3) } : null;
 
 let useUsdCam = !!usdCam;
@@ -331,7 +373,10 @@ document.getElementById("play").onclick = (e) => {
 };
 
 const variantRow = document.getElementById("variants");
+const hudSets = webSettings.hudVariantSets?.length ? new Set(webSettings.hudVariantSets) : null; // absent or empty: all sets
+applied.hudVariantSets = hudSets ? [...hudSets] : null;
 for (const vs of composed.variantSets) {
+  if (hudSets && !hudSets.has(vs.set)) continue;
   for (const opt of vs.options) {
     const b = document.createElement("button");
     b.textContent = opt;
@@ -387,8 +432,9 @@ report.fallbackMaterials = fallbacks();
 window.__inventory = inventory;
 
 setCamMode(true);
+if (webSettings.showProxy) { await toggleProxy(); applied.showProxy = true; }
 const fb = report.fallbackMaterials.length ? `\n${report.fallbackMaterials.length} prims fell back to a default material (MaterialX failed or the network is unsupported: see the console).` : "";
-say(`three r${THREE.REVISION} · isolated ${self.crossOriginIsolated} · WASM ${report.timings.wasmReady} ms · first draw ${report.timings.firstDraw} ms · materials ${report.timings.materialsReady} ms${fb}`);
+say(`three r${THREE.REVISION} · isolated ${self.crossOriginIsolated} · WASM ${report.timings.wasmReady} ms · first draw ${report.timings.firstDraw} ms · materials ${report.timings.materialsReady} ms${fb}${cameraNote}`);
 
 // ------------------------------------------------------------------ loop
 let last = performance.now();

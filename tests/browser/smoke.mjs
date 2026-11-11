@@ -79,6 +79,19 @@ await page.close();
 const phone = await open({ width: 390, height: 844 });
 await shot(phone, "06-phone-usd-cam");
 await phone.close();
+
+// /WebSettings: a root layer that sublayers shot.usda and authors web:title and web:showHud = false.
+const WS_TITLE = "WebSettings Fixture"; // must match TITLE in tools/make_websettings_stage.py
+const wsPage = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+wsPage.on("pageerror", (e) => logs.push(`[pageerror] ${e.message}`.slice(0, 400)));
+await wsPage.goto(`${BASE}&stage=/fixtures/stage/shot_websettings.usda`);
+await wsPage.waitForFunction(() => window.__report?.ready || window.__report?.errors?.length, null, { timeout: 240000 });
+const ws = await wsPage.evaluate(() => ({
+  title: document.title, hudDisplay: getComputedStyle(document.getElementById("hud")).display,
+  report: window.__report.webSettings, errors: window.__report.errors, env: !!window.__report.env,
+}));
+await shot(wsPage, "07-websettings");
+await wsPage.close();
 await browser.close();
 
 await writeFile(`${OUT}report.json`, JSON.stringify({ report, logs }, null, 2));
@@ -102,6 +115,10 @@ const checks = [
   [`proxy shows, then hides again (${meshesBefore} -> ${meshesProxyOn} -> ${meshesProxyOff} meshes)`,
     meshesProxyOn > meshesBefore && meshesProxyOff === meshesBefore],
   ["USDLoader route loaded meshes", report.jsRoute?.meshes > 0],
+  [`/WebSettings title applied (document.title = "${ws.title}")`, ws.title === WS_TITLE],
+  [`/WebSettings showHud = false hides #hud (display ${ws.hudDisplay})`, ws.hudDisplay === "none"],
+  ["/WebSettings stage loaded clean, dome intact", ws.errors.length === 0 && ws.env],
+  ["a stage with no /WebSettings keeps its defaults", report.webSettings?.read?.present === false && report.webSettings.applied.title === undefined],
 ];
 console.log("---- checks ----");
 for (const [name, ok] of checks) console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
