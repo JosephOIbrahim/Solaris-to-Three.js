@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solaris to three.js lockup</title>
+  <!--
+    Source of logo-lockup-light.png and logo-lockup-dark.png. render.mjs captures it.
+    Preview it in a browser: lockup.html (light) or lockup.html?theme=dark.
+    Fonts are SIL OFL and load from Google Fonts: Fraunces 600, JetBrains Mono 400.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=JetBrains+Mono:wght@400&display=block">
+  <style>
+    :root {
+      --ground: #FAF8F4;   /* paper */
+      --text: #2E2B28;
+      --secondary: #5B554F;
+      /* The mark's horizon sits on the wordmark's baseline, and the sun rises to cap height. */
+      --type: 48px;        /* Fraunces cap height at 48 px is 34 px */
+      --mark: 80px;        /* radius 7/16 of 80 = 35 px: cap height plus a round form's overshoot.
+                              A multiple of 16, so the 2x scanlines stay crisp when shown at 1x. */
+      --inset: calc(var(--mark) / 16);  /* empty unit around the circle inside the mark */
+      --gap: 20px;         /* circle edge to the first letter */
+      --axis: calc(var(--mark) - 2 * var(--inset) + var(--gap));
+      --space: 16px;       /* clear space on every side */
+    }
+    :root[data-theme="dark"] {
+      --ground: #1C1B19;   /* ink */
+      --text: #DAD6CF;
+      --secondary: #A79A90;
+    }
+    html, body { margin: 0; background: var(--ground); }
+    :root[data-capture] body, :root[data-capture] { background: transparent; }
+    body { padding: 48px; }
+    .lockup { display: inline-block; padding: var(--space); }
+    .kicker {
+      margin: 0 0 6px var(--axis);
+      font: 400 12px/1 "JetBrains Mono", ui-monospace, monospace;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--secondary);
+      white-space: nowrap;
+    }
+    .line {
+      font: 600 var(--type)/1 "Fraunces", Georgia, serif;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .mark {
+      --trim: 12px;        /* the empty band under the last scanline, kept out of the line box */
+      width: var(--mark);
+      height: var(--mark);
+      /* the circle's own edge, not the image box, meets the clear space and the gap */
+      margin: 0 calc(var(--gap) - var(--inset)) calc(-1 * var(--trim)) calc(-1 * var(--inset));
+      /* an image aligns by its bottom margin edge; this puts its centre, the horizon, on the baseline */
+      vertical-align: calc(var(--trim) - var(--mark) / 2);
+    }
+  </style>
+  <script>
+    (() => {
+      const q = new URLSearchParams(location.search);
+      const root = document.documentElement;
+      if (q.get("theme") === "dark") root.dataset.theme = "dark";
+      if (q.has("capture")) root.dataset.capture = "";
+    })();
+  </script>
+</head>
+<body>
+  <div class="lockup" id="lockup">
+    <div class="kicker">OpenUSD in the browser</div>
+    <div class="line"><img class="mark" id="mark" src="../logo-mark-light.svg" alt=""><span class="wordmark">Solaris to three.js</span></div>
+  </div>
+  <script>
+    if (document.documentElement.dataset.theme === "dark") document.getElementById("mark").src = "../logo-mark-dark.svg";
+  </script>
+</body>
+</html>

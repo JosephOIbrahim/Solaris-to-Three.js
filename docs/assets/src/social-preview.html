@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1280">
+  <title>Solaris to three.js social preview</title>
+  <!--
+    Source of social-preview.png (1280 x 640). render.mjs captures it.
+    Upload the PNG by hand: GitHub, Settings, General, Social preview.
+    Fonts are SIL OFL and load from Google Fonts: Fraunces 600, Archivo 400.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400&family=Fraunces:opsz,wght@9..144,600&display=block">
+  <style>
+    :root {
+      --paper: #FAF8F4;
+      --text: #2E2B28;
+      /* The lockup's proportions at 116 px: horizon on the baseline, sun at cap height. */
+      --type: 116px;
+      --mark: calc(var(--type) * 78 / 48);
+      --inset: calc(var(--mark) / 16);
+      --gap: calc(var(--type) * 20 / 48);
+      --axis: calc(var(--mark) - 2 * var(--inset) + var(--gap));
+      --margin: 96px;
+    }
+    html, body { margin: 0; background: var(--paper); }
+    .card { position: relative; width: 1280px; height: 640px; overflow: hidden; }
+    .group { position: absolute; left: var(--margin); top: 215px; }
+    .line {
+      font: 600 var(--type)/1 "Fraunces", Georgia, serif;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .mark {
+      width: var(--mark);
+      height: var(--mark);
+      /* an image aligns by its bottom margin edge; lifting that edge to the image's centre puts
+         the horizon on the baseline, and the scanlines hang below without pushing the deck down */
+      margin: 0 calc(var(--gap) - var(--inset)) calc(var(--mark) / -2) calc(-1 * var(--inset));
+      vertical-align: baseline;
+    }
+    .deck {
+      margin: 34px 0 0 var(--axis);
+      font: 400 46px/1 "Archivo", system-ui, sans-serif;
+      color: var(--text);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="group">
+      <div class="line"><img class="mark" src="../logo-mark-light.svg" alt=""><span class="wordmark">Solaris to three.js</span></div>
+      <p class="deck">Publish Houdini Solaris stages to the web.</p>
+    </div>
+  </div>
+</body>
+</html>
