@@ -71,7 +71,7 @@ def word(p):
 def decide(d):
     state = {k: d[k] for k in ("decision", "constraints", "options", "evidence") if k in d}
     answers, note = jev.ask(questions_for(d), state)
-    rec = {"id": d["id"], "date": datetime.date.today().isoformat(), "jev": note}
+    rec = {"id": d["id"], "date": datetime.date.today().isoformat(), "decided_by": "jev", "jev": note}
     if not answers:
         rec.update(verdict="ASK JOE", reasons=[f"no judgment ({note})"])
         return rec

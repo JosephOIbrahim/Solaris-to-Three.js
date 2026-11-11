@@ -96,6 +96,7 @@ class DecideTest(unittest.TestCase):
                 code = decide.main([str(src), "--record", str(log), "--json"])
             rec = json.loads(log.read_text(encoding="utf-8").splitlines()[-1])
         self.assertEqual(code, 1)
+        self.assertEqual(rec["decided_by"], "jev")
         self.assertEqual(rec["needs_person"], 0.39)
         self.assertEqual(set(rec["probabilities"]), {"a", "b", "neither"})
 

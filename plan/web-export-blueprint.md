@@ -181,6 +181,17 @@ Writers for other formats map what they can and report the rest as `note`.
 
 "MaterialX fallback" in v1 means: use the material's UsdPreviewSurface if one is bound for the `universal` render context, else a flat base colour read from the network's surface inputs. Baking MaterialX to texture maps is out of scope until a later version.
 
+### 4.7 Accepted additions (Joe, 2026-11-11)
+
+Wave 1 implemented these shapes with more than section 4 spells out. Joe recorded them as accepted, so they are part of the contract and not drift:
+
+- `LossReport.from_items()`, which computes the verdict by the rule, and `LossReport.from_json`, which Joe has since agreed also recomputes it.
+- `LossReport.to_json()` returning a dict, and `to_json_str()` returning text.
+- Defaults on `LossItem` (`examples` `[]`, `becomes` `""`, `fix` `None`), on `LossReport` (`items`, `jev_note`), on `ExportResult.preview_url`, and default factories on every `Inventory` list.
+- `api.check()` for the report alone, and `api.export(..., jev_on=...)`.
+- `MeshFact.points` is a count (an int), not a list of points.
+- `LossItem.examples` holds up to three prim paths or asset paths, whichever the finding names.
+
 ## 5. Missions
 
 **Rules for every mission.**
@@ -276,3 +287,9 @@ Nobody has confirmed these. The mission that touches one must verify it first an
 | M5 check builds | 22.0.400, 22.0.492 and 22.0.466 (22.0.459 is not installed) | Joe, 2026-11-11 | settled |
 | Explainer video | Silent, no text-to-speech service | Joe, 2026-11-11 | settled |
 | In-memory LOP export (W3) | Flatten the layer stack, stage it to a file, reuse the USD-folder writer | Jev ADOPT at the threshold, 2026-11-11 | settled unless Joe vetoes |
+| Verdict consistency | `LossReport` refuses a verdict that contradicts its items, and `from_json` recomputes the verdict | Joe, 2026-11-11 | settled |
+| Report binding | The writer records the root layer identifier its report was built from and raises when given a different stage | Joe, 2026-11-11 | settled |
+| Contract additions | The wave 1 defaults and helpers are recorded as accepted additions in section 4.7 rather than removed | Joe, 2026-11-11 | settled |
+| Licence line | `scripts/install_package.py` keeps Synapse's quote and adds this repo's "Joseph O. Ibrahim" form beside it | Joe, 2026-11-11 | settled |
+| glTF and X3D start | After 0.2.0 ships, M7 then M8 (this answers the W10 decision) | Joe, 2026-11-11 | settled |
+| Social preview | Joe uploads `docs/assets/social-preview.png` in the repository Settings; GitHub has no supported API for it | Joe, 2026-11-11 | Joe's action |

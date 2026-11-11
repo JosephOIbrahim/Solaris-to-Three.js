@@ -5,8 +5,10 @@ Writes a resolved <prefs>/packages/webexport.json with absolute paths that
 point at THIS repo, so ``import webexport`` works inside Houdini.
 
 Adapted from SYNAPSE scripts/install_synapse_package.py (source commit
-36148779, MIT licence, Copyright (c) 2025-2026 Joseph Ibrahim). The pref-dir
-rules, dry-run flow and read-only verify follow that file.
+36148779, MIT licence; that file's own line reads "Copyright (c) 2025-2026
+Joseph Ibrahim", quoted here exactly as it appears). The pref-dir rules,
+dry-run flow and read-only verify follow that file. This repository's own
+code is Copyright (c) 2026 Joseph O. Ibrahim, MIT.
 
 Usage:
     python scripts/install_package.py --dry-run              # show, write nothing
