@@ -80,6 +80,14 @@ def publish(node, reports, headline=""):
     _put(node, "check_enable", 1 if worst else 0)
 
 
+def _refresh_badge(node):
+    """Cook once, so the in-chain badge reports now rather than at some later cook."""
+    try:
+        node.cook(force=True)
+    except hou.OperationFailed:
+        pass  # the badge failing the cook with FIX FIRST is the point
+
+
 def on_check(kwargs):
     """The report only. This function never writes a file."""
     from webexport import api
@@ -89,6 +97,7 @@ def on_check(kwargs):
         publish(node, [], "Check: nothing is connected to the input.")
         return
     publish(node, api.check(stage))
+    _refresh_badge(node)
 
 
 def on_export(kwargs):
@@ -106,6 +115,7 @@ def on_export(kwargs):
     headline = (f"Export: wrote {sum(len(r.files) for r in wrote)} file(s) to {out_dir}."
                 if wrote else "Export: nothing was written (see the report).")
     publish(node, [r.report for r in results], headline)
+    _refresh_badge(node)
 
 
 def port_free(port=PORT) -> bool:
@@ -116,6 +126,22 @@ def port_free(port=PORT) -> bool:
             return True
         except OSError:
             return False
+
+
+def badge(node):
+    """The in-chain Python Script LOP's cook: render the hidden verdict as a node message.
+
+    FIX FIRST raises hou.NodeError, which is how Houdini fails a cook with a clean
+    message, so a blocking export is loud on the asset itself. GO, WITH NOTES raises
+    hou.NodeWarning. GO says nothing. The code lives here, not in the HDA (principle 4).
+    """
+    parent = node.parent()
+    code = parent.parm("check_verdict").eval() if parent.parm("check_verdict") else 0
+    message = parent.parm("check_message").evalAsString() if parent.parm("check_message") else ""
+    if code >= VERDICT_CODE["FIX FIRST"]:
+        raise hou.NodeError(message or "FIX FIRST: this stage would not load, or would look wrong, on the web.")
+    if code == VERDICT_CODE["GO, WITH NOTES"]:
+        raise hou.NodeWarning(message or "GO, WITH NOTES: the web export will look different from Karma.")
 
 
 def on_preview(kwargs):

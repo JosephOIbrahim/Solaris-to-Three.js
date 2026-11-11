@@ -29,6 +29,11 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHELF = os.path.join(REPO, "tests", "hou", "web_export_tools.shelf")
 DEFAULT_OUT = os.path.join(REPO, "houdini", "otls", "web_export.hda")
 BADGE = "verdict_badge"
+# the script inside the asset is two lines and calls the module, so no logic lives in the HDA
+BADGE_CODE = """import hou
+from webexport import hou_node
+hou_node.badge(hou.pwd())
+"""
 
 WEB_SETTINGS = (
     # name, label, kind, default
@@ -53,12 +58,13 @@ def build_contents(sub):
     """indirect input -> badge (in the cook chain) -> output0."""
     out = sub.node("output0") or sub.createNode("output", "output0", exact_type_name=True)
     out.parm("outputidx").set(0)
-    badge = sub.createNode("error", BADGE, exact_type_name=True)
+    # The badge is a Python Script LOP in the cook chain: it shows the verdict as a node
+    # message, and fails the cook on FIX FIRST. Joe's decision of 2026-11-11
+    # (fix-first-badge). The script is two lines and calls webexport.hou_node, so no logic
+    # lives in the HDA.
+    badge = sub.createNode("pythonscript", BADGE, exact_type_name=True)
+    badge.parm("python").set(BADGE_CODE)
     badge.setInput(0, sub.indirectInputs()[0])
-    # the verdict travels as data on the asset, and the badge renders it during the cook
-    badge.parm("errormsg1").setExpression('chs("../check_message")')
-    badge.parm("severity1").setExpression('ch("../check_verdict")')   # menu: 0 message, 1 warn, 2 error
-    badge.parm("enable1").setExpression('ch("../check_enable")')
     out.setInput(0, badge)
     return badge
 

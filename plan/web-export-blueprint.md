@@ -293,3 +293,4 @@ Nobody has confirmed these. The mission that touches one must verify it first an
 | Licence line | `scripts/install_package.py` keeps Synapse's quote and adds this repo's "Joseph O. Ibrahim" form beside it | Joe, 2026-11-11 | settled |
 | glTF and X3D start | After 0.2.0 ships, M7 then M8 (this answers the W10 decision) | Joe, 2026-11-11 | settled |
 | Social preview | Joe uploads `docs/assets/social-preview.png` in the repository Settings; GitHub has no supported API for it | Joe, 2026-11-11 | Joe's action |
+| FIX FIRST badge | An in-chain Python Script LOP calls `webexport.hou_node.badge`, which raises `hou.NodeError` on FIX FIRST and `hou.NodeWarning` on GO, WITH NOTES. An Error LOP at error severity was probed and reports nothing | Joe, 2026-11-11 | settled |

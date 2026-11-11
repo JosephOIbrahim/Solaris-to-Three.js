@@ -74,6 +74,14 @@ def main(argv=None):
 
     inst.parm("check").pressButton()
     result["check"] = read(inst)
+    # the badge reports during a cook, so cook and read what the asset says on its own node
+    try:
+        inst.cook(force=True)
+        result["cookAfterCheck"] = "ok"
+    except Exception as exc:
+        result["cookAfterCheck"] = f"{type(exc).__name__}: {str(exc).splitlines()[0]}"
+    result["check"]["errorsAfterCook"] = list(inst.errors())
+    result["check"]["warningsAfterCook"] = list(inst.warnings())
 
     inst.parm("export").pressButton()
     result["export"] = read(inst)
