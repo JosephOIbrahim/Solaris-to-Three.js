@@ -1,0 +1,17 @@
+#usda 1.0
+(
+    defaultPrim = "hero"
+    subLayers = [
+        @./shot.usda@
+    ]
+)
+
+def Scope "WebSettings"
+{
+    custom float web:backgroundBlur = 0.35
+    custom float web:exposureOffset = 0
+    custom bool web:showHud = 0
+    custom bool web:showProxy = 0
+    custom string web:title = "WebSettings Fixture"
+}
+
