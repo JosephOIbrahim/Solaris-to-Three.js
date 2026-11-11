@@ -55,6 +55,12 @@ class LossReport:
     items: list[LossItem] = field(default_factory=list)
     jev_note: str = ""
 
+    def __post_init__(self) -> None:
+        """Refuse a verdict that contradicts the items (blueprint 4.3: the rule is in code)."""
+        expected = verdict_for(self.items)
+        if self.verdict != expected:
+            raise ValueError(f"verdict {self.verdict!r} contradicts the items, which give {expected!r}")
+
     @classmethod
     def from_items(cls, format: str, items: list[LossItem], jev_note: str = "") -> "LossReport":
         """Build a report with the verdict computed by the rule, never typed by hand."""
@@ -94,7 +100,11 @@ class LossReport:
 
     @classmethod
     def from_json(cls, data: dict[str, Any] | str) -> "LossReport":
-        """Inverse of to_json(). Accepts the dict or its json.dumps string."""
+        """Inverse of to_json(). Accepts the dict or its json.dumps string.
+
+        The verdict is recomputed from the items, never read from the data: a stale or edited
+        verdict in a saved report cannot make it disagree with itself.
+        """
         if isinstance(data, str):
             data = json.loads(data)
         items = [
@@ -108,5 +118,4 @@ class LossReport:
             )
             for i in data.get("items", [])
         ]
-        return cls(format=data["format"], verdict=data["verdict"], items=items,
-                   jev_note=data.get("jev_note", ""))
+        return cls.from_items(data["format"], items, jev_note=data.get("jev_note", ""))

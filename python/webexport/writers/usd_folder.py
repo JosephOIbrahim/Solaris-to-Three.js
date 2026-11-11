@@ -13,7 +13,8 @@ the outside files to external_2/.
 Two steps, so the LossReport exists before anything is written (principle 1):
 
     plan = plan_folder(stage.GetRootLayer())    # reads only; the profile reports from it
-    UsdFolderWriter(report=report, plan=plan).write(stage, inv, out_dir, settings)
+    UsdFolderWriter(report=report, plan=plan, root=stage.GetRootLayer().identifier).write(
+        stage, inv, out_dir, settings)
 
 Built on UsdUtils.ComputeAllDependencies, file copies and UsdUtils.ModifyAssetPaths on the
 copies, never UsdUtils.LocalizeAsset: on usd-core 26.5 that wrote a dangling 0/wood.png for a
@@ -32,7 +33,7 @@ from pxr import Ar, Sdf, Usd, UsdUtils
 
 from .. import textures
 from ..inventory import _norm, inside, is_absolute
-from ..report import LossReport
+from ..report import LossItem, LossReport
 from ..settings import SETTINGS_PATH, read_settings, write_settings
 from ..validate import validate_folder, web_census
 from .base import ExportResult
@@ -218,6 +219,29 @@ def _fresh(path: Path) -> Sdf.Layer:
     return Sdf.Layer.FindOrOpen(str(path))
 
 
+def _with_items(report: LossReport, items: list[LossItem]) -> LossReport:
+    """A copy of report with items added, its verdict recomputed by the rule."""
+    if not items:
+        return report
+    return LossReport.from_items(report.format, list(report.items) + list(items), jev_note=report.jev_note)
+
+
+def validation_items(validation) -> list[LossItem]:
+    """Every problem validate_folder() found, as a LossItem, so validated=False always has a reason.
+
+    The census reading FIX FIRST on the written folder is not one of Validation.problems, so it gets
+    one catch-all item. Severity "changes", feature "validation" (decision validation-reporting).
+    """
+    items = [LossItem("changes", "validation", 1, [], problem, "fix the finding, then export again")
+             for problem in validation.problems]
+    if not validation.ok and not items:
+        verdict = validation.verdict or "the folder does not open"
+        items.append(LossItem("changes", "validation", 1, [validation.entry_file.name],
+                              f"the web census on the written folder says {verdict}",
+                              "fix the census findings, then export again"))
+    return items
+
+
 def check_target(stage: Usd.Stage, plan: FolderPlan, out_dir: Path) -> None:
     """Refuse an export folder that overlaps the source: never write into the source folder."""
     out = _norm(str(out_dir))
@@ -235,18 +259,34 @@ def check_target(stage: Usd.Stage, plan: FolderPlan, out_dir: Path) -> None:
 
 class UsdFolderWriter:
     """Writes the USD folder (blueprint 4.4). Give it the report and plan the profile made, so
-    nothing is worked out twice; without them it makes its own before writing anything."""
+    nothing is worked out twice; without them it makes its own before writing anything.
+
+    root is the identifier of the stage's root layer the report and plan were built from. When it
+    is given, write() refuses a stage whose root layer differs: a report for one stage must never
+    authorise writing another (decision report-stage-binding).
+    """
     name = FORMAT
 
     def __init__(self, report: LossReport | None = None, plan: FolderPlan | None = None,
-                 jev_on: bool = True) -> None:
-        self.report, self.plan, self.jev_on = report, plan, jev_on
+                 jev_on: bool = True, root: str | None = None) -> None:
+        if report is not None and root is None:
+            raise ValueError("a supplied report must name the root layer identifier it was built from; "
+                             "pass root=stage.GetRootLayer().identifier")
+        self.report, self.plan, self.jev_on, self.root = report, plan, jev_on, root
+
+    def _check_stage(self, stage: Usd.Stage) -> None:
+        got = stage.GetRootLayer().identifier
+        if self.root is not None and got != self.root:
+            raise ValueError(f"the report was built for {self.root}, but this writer was handed {got}; "
+                             "build the report and the plan from the stage you write")
 
     def entry_file(self, stage: Usd.Stage, out_dir: Path) -> Path:
+        self._check_stage(stage)
         plan = self.plan or plan_folder(stage.GetRootLayer())
         return Path(out_dir) / (plan.root or f"{Path(out_dir).name}.usda")
 
     def write(self, stage: Usd.Stage, inv, out_dir: Path, settings) -> ExportResult:
+        self._check_stage(stage)
         out_dir = Path(out_dir)
         plan = self.plan or plan_folder(stage.GetRootLayer())
         report = self.report
@@ -254,6 +294,8 @@ class UsdFolderWriter:
             from ..profiles.usd_folder import UsdFolderProfile  # here, not at the top: the profile imports this module
             profile = UsdFolderProfile(stage=stage, plan=plan, jev_on=self.jev_on)
             report = LossReport.from_items(FORMAT, profile.assess(inv), jev_note=profile.jev_note)
+        if report is not self.report:
+            self.root = stage.GetRootLayer().identifier  # this writer's report is now about this stage
         entry = out_dir / (plan.root or f"{out_dir.name}.usda")
         if any(i.severity == "blocks" for i in report.items):
             return ExportResult(FORMAT, entry, [], 0, report, False)  # writes nothing, not even the folder
@@ -280,5 +322,6 @@ class UsdFolderWriter:
             written.append(dst)
         written = written[-1:] + written[:-1]  # the entry file first
         validation = validate_folder(entry)
+        report = _with_items(report, validation_items(validation))  # principle 9: never a silent validated=False
         return ExportResult(FORMAT, entry, written, sum(f.stat().st_size for f in written), report,
                             validation.ok)
