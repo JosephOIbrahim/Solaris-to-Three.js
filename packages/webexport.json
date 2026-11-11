@@ -1,0 +1,18 @@
+{
+    "name": "webexport",
+    "enable": true,
+    "load_package_once": true,
+    "comment": "Web Export Houdini package. Portable: paths derive from $HOUDINI_PACKAGE_PATH (the folder that holds THIS file = <repo>/packages). Either add <repo>/packages to HOUDINI_PACKAGE_DIR, or run scripts/install_package.py to deploy a resolved copy into your Houdini user prefs. Uses hpath (the Houdini 22 keyword) and load_package_once so a deployed copy and HOUDINI_PACKAGE_DIR pointing here cannot double-load.",
+    "env": [
+        {
+            "var": "WEBEXPORT_ROOT",
+            "value": "$HOUDINI_PACKAGE_PATH/.."
+        },
+        {
+            "var": "PYTHONPATH",
+            "value": "$WEBEXPORT_ROOT/python",
+            "method": "prepend"
+        }
+    ],
+    "hpath": "$WEBEXPORT_ROOT/houdini"
+}
