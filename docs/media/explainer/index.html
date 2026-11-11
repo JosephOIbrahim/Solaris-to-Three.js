@@ -352,7 +352,8 @@
     }
     function buildS03(s) {
       common(s);
-      edge([[JOIN, MID + 108], [JOIN, MID + 216], [1294, MID + 216]], { at: 0.9 });
+      // From the trunk, like Storm's branch, so the line stays whole past Storm's rounded corner.
+      edge([[JOIN, MID], [JOIN, MID + 216], [1294, MID + 216]], { at: 0.9 });
       D.three = node("three.js", 1294, ROW + 216, 230, NODE_H, { at: 1.2, accent: true });
       label("label", "OpenUSD 26.05 in WebAssembly, by Needle", 144, 862, { at: 2.6 });
       const row = put(make("div", "chiprow"), 144, 912);
