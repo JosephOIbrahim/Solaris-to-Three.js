@@ -11,27 +11,36 @@ Needle compiled OpenUSD 26.05 to WebAssembly and wrote a render delegate that ou
 ## The pipeline
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Archivo, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Helvetica, Arial, Noto Sans, Liberation Sans, DejaVu Sans", "fontSize": "16px", "primaryColor": "#FAF8F4", "primaryTextColor": "#2E2B28", "primaryBorderColor": "#927D70", "secondaryColor": "#F1ECE4", "tertiaryColor": "#F1ECE4", "lineColor": "#927D70", "arrowheadColor": "#927D70", "textColor": "#83776D", "nodeTextColor": "#2E2B28", "clusterBkg": "#F1ECE4", "clusterBorder": "#927D70", "titleColor": "#2E2B28", "edgeLabelBackground": "#FAF8F4", "noteBkgColor": "#F1ECE4", "noteTextColor": "#2E2B28", "noteBorderColor": "#927D70"}}}%%
 flowchart TB
   subgraph desk["Houdini, at your desk"]
-    lop["Solaris LOP network"] --> rop["USD ROP: one folder, relative paths"]
+    lop["Solaris LOP network"]:::accent --> rop["USD ROP: one folder, relative paths"]
   end
-  rop --> folder[("export folder: root layer, payloads, textures")]
-  folder --> census["tools/web_census.py: FIX FIRST, GO WITH NOTES, or GO"]
-  census -->|GO| stages["stages/name/"]
+  rop --> folder[("export folder: root layer, payloads, textures")]:::umber
+  folder --> census{"tools/web_census.py"}:::ochre
+  census -->|FIX FIRST| outside["a file outside the export folder (a ../ path) or another blocker: fix it and re-export"]:::clay
+  outside -.-> rop
+  census -->|"GO, or GO, WITH NOTES"| stages["copy the folder to stages/name/"]:::moss
   stages --> server
   subgraph server["server/serve.mjs, port 5180"]
     headers["COOP same-origin and COEP require-corp on every response"]
   end
   server --> wasm
   subgraph tab["Browser tab, cross-origin isolated"]
-    wasm["OpenUSD 26.05 in WebAssembly: composes the stage"] --> hydra["Hydra"]
+    wasm["OpenUSD 26.05 in WebAssembly: composes the stage"]:::stone --> hydra["Hydra"]
     hydra --> delegate["Needle three.js render delegate"]
     delegate --> mtlx["MaterialX 1.8.0: shader generation"]
     delegate --> scene["three.js r187 scene"]
     mtlx --> scene
-    bridge["Lighting bridge: dome to environment, USD lights to candela"] --> scene
+    bridge["Lighting bridge: reads DomeLight_1, orients the dome by its transform and poleAxis, USD lights to candela"]:::stone --> scene
     scene --> webgl["WebGL"]
   end
+  classDef stone fill:#DEE4E5,stroke:#7096A7,stroke-width:1.5px,color:#2E2B28
+  classDef moss fill:#E5E8DC,stroke:#91A87B,stroke-width:1.5px,color:#2E2B28
+  classDef ochre fill:#EBE2D2,stroke:#AE8B4C,stroke-width:1.5px,color:#2E2B28
+  classDef clay fill:#EADAD4,stroke:#AA6455,stroke-width:1.5px,color:#2E2B28
+  classDef umber fill:#E5DFDA,stroke:#927D70,stroke-width:1.5px,color:#2E2B28
+  classDef accent fill:#C8321A,stroke:#C8321A,stroke-width:1.5px,color:#FAF8F4
 ```
 
 ## The layers, one at a time
