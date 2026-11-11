@@ -4,6 +4,8 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-11
+
 ### Added
 
 - `docs/export.md`, the operator's card for setting up the USD ROP for the web: save style, metrics and the order of the built-in output processors.
@@ -57,7 +59,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.3
 [0.1.2]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.2
 [0.1.1]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.1
 [0.1.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.0
