@@ -4,6 +4,20 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-12
+
+This release covers two new formats. glTF and X3D join the USD folder, and the Web Export node writes all three.
+
+### Added
+
+- glTF export (`python/webexport/profiles/gltf.py`, `writers/gltf.py`): `api.export(stage, ["gltf"])` writes one `.glb` with meshes (quads triangulated, world transforms baked), UsdPreviewSurface to PBR, PNG and JPEG base colour textures embedded in the file, a camera, `KHR_lights_punctual` for sphere and distant lights, and `EXT_mesh_gpu_instancing` for PointInstancers. The report says what glTF cannot carry: subdivision as its cage, geometry variants reduced to the selected option, material variants not encoded yet, area and dome lights dropped, and any image that is not PNG or JPEG as a block. `validate_glb()` re-opens the file and checks the container, every accessor and every image.
+- The glTF player (`viewer/players/gltf.html`): three's `GLTFLoader` on the exporter's own `fixtures/stage-flat/hero.glb`, with no Needle packages, framed from the model's bounds and lit by `KHR_lights_punctual` when the file carries lights. `tools/make_gltf_fixture.py` rebuilds the fixture, and the browser test now loads it and checks 8 meshes, 36 instances and zero errors.
+- The Web Export node writes glTF too: the **glTF** format toggle is live and on by default, and `hou_node` asks the core for whichever formats are ticked. On hython 22.0.400, .492 and .466 the fixture gives GO and Export writes `hero.usda`, `hero.glb` and their assets (`external/`) into one folder.
+- glTF material looks survive: the writer writes `KHR_materials_variants`, evaluates the bound material under each look of a material variant set and maps the primitive to one material per look. The fixture's `look` set now travels as chrome, ember and gold, with their own base colours, metalness and roughness, and the profile reports it as a note instead of a loss. Materials also resolve through the `mtlx` render context now, so MaterialX surfaces export their real values instead of the default grey.
+- X3D export (`python/webexport/profiles/x3d.py`, `writers/x3d.py`): `api.export(stage, ["x3d"])` writes X3D 4.0 XML with `Transform`/`Shape`/`IndexedFaceSet`, `PhysicalMaterial`, a `Switch` per material variant set (one group per look), `DEF`/`USE` for PointInstancers, a `Viewpoint` and `PointLight`/`DirectionalLight`. The file validates against the official X3D 4.0 schema, and the test checks that with lxml when the schema is reachable. The profile reports what X3D cannot carry: subdivision as its cage, material variants duplicated per look, area and dome lights dropped, and images that are not PNG or JPEG blocking the export.
+- The X3D player (`viewer/players/x3d.html`): X_ITE 16.7.1, MIT, pinned and loaded from jsDelivr, on the exporter's own `fixtures/stage-flat/hero.x3d`. X_ITE exposes no node counts, so the page parses the file it renders and reports shapes, instances and switches. `tools/make_x3d_fixture.py` rebuilds the fixture, `serve.mjs` serves `.x3d` as `model/x3d+xml`, and the browser test loads it with zero errors. All 18 browser checks pass.
+- The Web Export node writes X3D too: the **X3D** format toggle is live and on by default. With all three formats on, the fixture gives GO on hython 22.0.400, .492 and .466, and Export writes `hero.usda`, `hero.glb`, `hero.x3d` and their assets into one folder.
+
 ## [0.2.0] - 2026-11-11
 
 ### Added
@@ -23,20 +37,6 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 - **Preview** starts the repository's viewer server from the node, on port 5180 or `WEBEXPORT_PORT`, and opens it. `WEBEXPORT_NO_BROWSER=1` keeps a batch run quiet. Verified on 22.0.400: the server answers and outlives the hython process.
 - `docs/web-export.md`, the operator's card for the node: install, the three buttons, reading the report, the batch path and the traps.
 - Every validation problem now travels as a report item, so `validated=False` always carries its reason. A report refuses a verdict that contradicts its items and recomputes it when read back, and a report is bound to the stage it was built from.
-
-- glTF export (`python/webexport/profiles/gltf.py`, `writers/gltf.py`): `api.export(stage, ["gltf"])` writes one `.glb` with meshes (quads triangulated, world transforms baked), UsdPreviewSurface to PBR, PNG and JPEG base colour textures embedded in the file, a camera, `KHR_lights_punctual` for sphere and distant lights, and `EXT_mesh_gpu_instancing` for PointInstancers. The report says what glTF cannot carry: subdivision as its cage, geometry variants reduced to the selected option, material variants not encoded yet, area and dome lights dropped, and any image that is not PNG or JPEG as a block. `validate_glb()` re-opens the file and checks the container, every accessor and every image.
-
-- The glTF player (`viewer/players/gltf.html`): three's `GLTFLoader` on the exporter's own `fixtures/stage-flat/hero.glb`, with no Needle packages, framed from the model's bounds and lit by `KHR_lights_punctual` when the file carries lights. `tools/make_gltf_fixture.py` rebuilds the fixture, and the browser test now loads it and checks 8 meshes, 36 instances and zero errors.
-
-- The Web Export node writes glTF too: the **glTF** format toggle is live and on by default, and `hou_node` asks the core for whichever formats are ticked. On hython 22.0.400, .492 and .466 the fixture gives GO and Export writes `hero.usda`, `hero.glb` and their assets (`external/`) into one folder.
-
-- glTF material looks survive: the writer writes `KHR_materials_variants`, evaluates the bound material under each look of a material variant set and maps the primitive to one material per look. The fixture's `look` set now travels as chrome, ember and gold, with their own base colours, metalness and roughness, and the profile reports it as a note instead of a loss. Materials also resolve through the `mtlx` render context now, so MaterialX surfaces export their real values instead of the default grey.
-
-- X3D export (`python/webexport/profiles/x3d.py`, `writers/x3d.py`): `api.export(stage, ["x3d"])` writes X3D 4.0 XML with `Transform`/`Shape`/`IndexedFaceSet`, `PhysicalMaterial`, a `Switch` per material variant set (one group per look), `DEF`/`USE` for PointInstancers, a `Viewpoint` and `PointLight`/`DirectionalLight`. The file validates against the official X3D 4.0 schema, and the test checks that with lxml when the schema is reachable. The profile reports what X3D cannot carry: subdivision as its cage, material variants duplicated per look, area and dome lights dropped, and images that are not PNG or JPEG blocking the export.
-
-- The X3D player (`viewer/players/x3d.html`): X_ITE 16.7.1, MIT, pinned and loaded from jsDelivr, on the exporter's own `fixtures/stage-flat/hero.x3d`. X_ITE exposes no node counts, so the page parses the file it renders and reports shapes, instances and switches. `tools/make_x3d_fixture.py` rebuilds the fixture, `serve.mjs` serves `.x3d` as `model/x3d+xml`, and the browser test loads it with zero errors. All 18 browser checks pass.
-
-- The Web Export node writes X3D too: the **X3D** format toggle is live and on by default. With all three formats on, the fixture gives GO on hython 22.0.400, .492 and .466, and Export writes `hero.usda`, `hero.glb`, `hero.x3d` and their assets into one folder.
 
 ### Fixed
 
@@ -100,7 +100,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.4.0
 [0.2.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.2.0
 [0.1.3]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.3
 [0.1.2]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.2
