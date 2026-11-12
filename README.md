@@ -6,7 +6,7 @@
 
 Publish Houdini Solaris output on the web. One node writes four formats, and real OpenUSD composes the USD stage inside a browser tab while three.js r187 draws it as a Hydra render delegate, the same way Karma does in Houdini.
 
-Reading path: read Status to Quickstart first, five sections and about three minutes, then run the viewer; the rest is reference, about six minutes more, for when your own export is ready.
+Reading path: read Status to Quickstart first, seven sections and about four minutes, then run the viewer; the rest is reference, about seven minutes more, for when your own export is ready.
 
 ---
 
