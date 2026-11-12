@@ -76,9 +76,12 @@ def parm_group():
     formats = hou.FolderParmTemplate("formats", "Formats", folder_type=hou.folderType.Simple)
     formats.addParmTemplate(hou.ToggleParmTemplate("fmt_usd", "USD Folder", default_value=True,
                                                   help="One self-contained folder: layers, textures, /WebSettings."))
-    for name, label in (("fmt_gltf", "glTF"), ("fmt_x3d", "X3D"), ("fmt_usdz", "USDZ")):
+    formats.addParmTemplate(hou.ToggleParmTemplate(
+        "fmt_gltf", "glTF", default_value=True,
+        help="One .glb: meshes, PBR, textures, camera, punctual lights, GPU instancing."))
+    for name, label in (("fmt_x3d", "X3D"), ("fmt_usdz", "USDZ")):
         t = hou.ToggleParmTemplate(name, label, default_value=False, is_hidden=False,
-                                   help="Not in 0.2.0. Reported as unavailable, never silently skipped.")
+                                   help="Not written yet. Reported as unavailable, never silently skipped.")
         t.setConditional(hou.parmCondType.DisableWhen, "{ 0 }")  # always disabled, visibly
         formats.addParmTemplate(t)
     ptg.append(formats)

@@ -22,7 +22,7 @@ The package sets `WEBEXPORT_ROOT`, puts `python/` on `PYTHONPATH`, and adds `hou
 01. In `/stage`, press Tab and choose **Web Export** under **File IO/Export**.
 02. Wire the last stage of the network into its one input. The asset requires one input, so an unwired node shows an error.
 03. Set **Output Folder**. The default is `$HIP/web_export`.
-04. Leave **Formats** on **USD Folder**. glTF, X3D and USDZ are visible and disabled in 0.2.0.
+04. **Formats** has two live toggles now: **USD Folder** and **glTF**. Both are on by default, and Export writes the folder and a `.glb` beside it. glTF reports what it cannot carry (subdivision as a cage, area and dome lights dropped, material variants and animation still to come). X3D and USDZ stay visible and disabled.
 05. Set the **Web Settings** you want. The table below says what each one does.
 
 | Setting | Effect in the viewer |

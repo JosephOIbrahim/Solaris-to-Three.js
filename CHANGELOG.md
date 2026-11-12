@@ -28,6 +28,8 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 - The glTF player (`viewer/players/gltf.html`): three's `GLTFLoader` on the exporter's own `fixtures/stage-flat/hero.glb`, with no Needle packages, framed from the model's bounds and lit by `KHR_lights_punctual` when the file carries lights. `tools/make_gltf_fixture.py` rebuilds the fixture, and the browser test now loads it and checks 8 meshes, 36 instances and zero errors.
 
+- The Web Export node writes glTF too: the **glTF** format toggle is live and on by default, and `hou_node` asks the core for whichever formats are ticked. On hython 22.0.400, .492 and .466 the fixture gives GO and Export writes `hero.usda`, `hero.glb` and their assets (`external/`) into one folder.
+
 ### Fixed
 
 - When `/WebSettings` has no `web:title`, the viewer now titles the page and the HUD with the stage file name, as blueprint section 4.5 says, and records where the title came from. A browser check covers it.

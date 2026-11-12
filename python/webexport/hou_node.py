@@ -80,6 +80,18 @@ def publish(node, reports, headline=""):
     _put(node, "check_enable", 1 if worst else 0)
 
 
+# the asset's format toggles, and the formats the core can write today
+FORMAT_PARMS = {"usd_folder": "fmt_usd", "gltf": "fmt_gltf", "x3d": "fmt_x3d", "usdz": "fmt_usdz"}
+
+
+def formats_for(node) -> list[str]:
+    """The formats whose toggles are on, in the core's order. At least the USD folder."""
+    from webexport.api import FORMATS
+    chosen = [fmt for fmt in FORMATS
+              if node.parm(FORMAT_PARMS[fmt]) and node.parm(FORMAT_PARMS[fmt]).eval()]
+    return chosen or ["usd_folder"]
+
+
 def _refresh_badge(node):
     """Cook once, so the in-chain badge reports now rather than at some later cook."""
     try:
@@ -96,7 +108,7 @@ def on_check(kwargs):
     if stage is None:
         publish(node, [], "Check: nothing is connected to the input.")
         return
-    publish(node, api.check(stage))
+    publish(node, api.check(stage, formats_for(node)))
     _refresh_badge(node)
 
 
@@ -110,7 +122,7 @@ def on_export(kwargs):
         return
     out_dir = node.parm("outdir").evalAsString() if node.parm("outdir") else "$HIP/web_export"
     out_dir = hou.text.expandString(out_dir)
-    results = api.export(stage, ["usd_folder"], out_dir, web_settings(node))
+    results = api.export(stage, formats_for(node), out_dir, web_settings(node))
     wrote = [r for r in results if r.files]
     headline = (f"Export: wrote {sum(len(r.files) for r in wrote)} file(s) to {out_dir}."
                 if wrote else "Export: nothing was written (see the report).")
