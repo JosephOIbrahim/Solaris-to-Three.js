@@ -43,9 +43,9 @@ The seven settings travel as `/WebSettings` attributes in the export, so the vie
 |---|---|---|
 | **Check** | The report, nothing else | Reads the composed stage on input 0 and puts the loss report in **Report**. This button never writes a file. |
 | **Export** | The folder, or nothing | Runs the same report, then writes the folder only when nothing blocks. The report gains a headline with the file count and folder. |
-| **Preview** | Nothing | Starts `node server/serve.mjs` on `http://127.0.0.1:5180` when the port is free, then opens the browser. When 5180 is already serving, it opens that page. |
+| **Preview** | Nothing | Starts `node server/serve.mjs` on `http://127.0.0.1:5180` when the port is free, then opens the browser. When the port is already serving, it opens that page. |
 
-Set `WEBEXPORT_NO_BROWSER=1` in the environment to start the server without opening a browser.
+Set `WEBEXPORT_NO_BROWSER=1` in the environment to start the server without opening a browser, and `WEBEXPORT_PORT` to use a port other than 5180 (useful when another session already holds it).
 
 **The badge on the node repeats the verdict.** The asset contains an in-chain Python Script LOP that reads the hidden verdict. **FIX FIRST** raises an error on the node, **GO, WITH NOTES** raises a warning, and **GO** says nothing. Because the badge sits in the cook chain, a FIX FIRST verdict also fails the asset's cook. That is deliberate: a stage that cannot go to the web should not pass silently to the next node.
 
