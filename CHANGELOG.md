@@ -4,6 +4,10 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-11-12
+
+This release covers the changelog blank-line check.
+
 ### Changed
 
 - `tests/test_claims.py` gained a third structural check: every `## [` and `### ` heading must be followed by a blank line. Verified against three malformed changelogs and one well-formed one, which passes.
@@ -179,7 +183,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.6...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.7...HEAD
+[0.6.7]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.7
 [0.6.6]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.6
 [0.6.5]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.5
 [0.6.4]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.4
