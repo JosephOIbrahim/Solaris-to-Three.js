@@ -258,7 +258,7 @@ Nobody has confirmed these. The mission that touches one must verify it first an
 
 1. Whether a LOP HDA button callback can safely start a long-lived Node process on Windows (M5). **Verified 2026-11-11, headless path:** from hython 22.0.400, pressing Preview starts `server/serve.mjs` detached on the chosen port (5 `WEBEXPORT_PORT`), it answers on that port, and it outlives the hython process. Still open: the GUI path (question 43), whether a click flashes a console or stalls the UI.
 2. X_ITE's licence (M8). X3DOM is MIT/GPL dual but does not support X3D 4.0.
-3. Whether Houdini's own glTF output can take a LOP stage directly (M7 spike).
+3. Whether Houdini's own glTF output can take a LOP stage directly (M7 spike). **Answered 2026-11-11: no.** `gltf::2.0` is a geometry ROP, and `usdimport`/`unpackusd` flatten the stage before it, losing variants and purpose. See `docs/decisions/0001-gltf-writer.md`.
 4. How MaterialX networks authored by Karma expose a usable base colour without baking (M7, M8).
 5. Whether three's WebGPU renderer can run Needle's MaterialX materials. Not needed before v0.5.
 6. Live Jev calls. All Jev paths are tested against a local stand-in only. **Verified 2026-11-11:** the build router and `tools/decide.py` both returned typed answers from `jev-latest` in live requests.
@@ -282,7 +282,7 @@ Nobody has confirmed these. The mission that touches one must verify it first an
 | Formats | USD folder, glTF, X3D, USDZ, then splats | Joe (X3D required) | settled |
 | Workflow | Straight to main from the workstation | Joe | settled |
 | Design system reuse | Copy from Synapse at a pinned commit, not a shared package | Claude default: it leaves Synapse untouched during the demo push | **Joe to confirm** |
-| glTF writer route | Pure Python unless the M7 spike says otherwise | Claude default | open until M7 |
+| glTF writer route | Pure Python from `pxr`. The M7 spike proved the container, accessors, instancing and texture embedding, and showed Houdini has no direct LOP-to-glTF route | Jev's blueprint default, confirmed by the spike 2026-11-11 | settled |
 | HDA inputs | `min_num_inputs=1`, so an unwired Web Export node shows an error | Joe, 2026-11-11 | settled |
 | M5 check builds | 22.0.400, 22.0.492 and 22.0.466 (22.0.459 is not installed) | Joe, 2026-11-11 | settled |
 | Explainer video | Silent, no text-to-speech service | Joe, 2026-11-11 | settled |
