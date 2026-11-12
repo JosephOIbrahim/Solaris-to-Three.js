@@ -82,10 +82,9 @@ def parm_group():
     formats.addParmTemplate(hou.ToggleParmTemplate(
         "fmt_x3d", "X3D", default_value=True,
         help="One .x3d: X3D 4.0, PhysicalMaterial, Switch for looks, DEF/USE instancing."))
-    t = hou.ToggleParmTemplate("fmt_usdz", "USDZ", default_value=False, is_hidden=False,
-                               help="Not written yet. Reported as unavailable, never silently skipped.")
-    t.setConditional(hou.parmCondType.DisableWhen, "{ 0 }")  # always disabled, visibly
-    formats.addParmTemplate(t)
+    formats.addParmTemplate(hou.ToggleParmTemplate(
+        "fmt_usdz", "USDZ", default_value=True,
+        help="One .usdz: the USD folder packed into a single archive for Quick Look."))
     ptg.append(formats)
 
     ptg.append(hou.StringParmTemplate("outdir", "Output Folder", 1,

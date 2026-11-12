@@ -89,15 +89,12 @@ def main(argv=None):
     result["files"] = sorted(os.path.relpath(os.path.join(r, f), out_dir)
                              for r, _d, fs in os.walk(out_dir) for f in fs)
 
-    verdict = None
-    for line in (result["export"]["report"] or "").splitlines():
-        for candidate in ("FIX FIRST", "GO, WITH NOTES", "GO"):
-            if line.strip().startswith(candidate):
-                verdict = candidate
-                break
-        if verdict:
-            break
-    result["verdict"] = verdict
+    # the worst verdict across every format, read from the node's own parm rather than from text:
+    # scanning text picks up the first format's verdict and hides a later format's FIX FIRST
+    codes = {0: "GO", 1: "GO, WITH NOTES", 2: "FIX FIRST"}
+    result["verdict"] = codes.get(result["export"]["verdict_code"]) if result["export"]["report"] else None
+    result["verdicts_by_format"] = [line.strip() for line in (result["export"]["report"] or "").splitlines()
+                                    if line.strip().startswith(("FIX FIRST", "GO, WITH NOTES", "GO"))]
 
     text = json.dumps(result, indent=1)
     if a.json:
