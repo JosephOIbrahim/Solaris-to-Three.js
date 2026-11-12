@@ -40,6 +40,9 @@ This release covers two new formats. glTF and X3D join the USD folder, and the W
 
 - glTF bakes xform animation: a moving node's local-to-world is sampled at every timecode of the stage's range and written as glTF `animations` with one LINEAR sampler per channel (translation, rotation as quaternions, scale), times in seconds and the required accessor min/max. Geometry now sits in prim space with the transform on its node, so a node can move. `fixtures/stage-animated/` holds a cube that turns a full circle over 121 frames, built by `tools/make_animated_stage.py`, and the glTF test checks the channels and the 121-sample accessors. The profile reports animation as a note rather than a loss.
 
+- X3D bakes xform animation: a moving node's local-to-world is sampled across the stage's range and written as a `TimeSensor`, `OrientationInterpolator`/`PositionInterpolator` nodes and `ROUTE` statements, with the node's static pose taken from the stage start. The profile reports animation as a note, and `validate_x3d()` checks the routes and the key counts.
+- USDZ export (`python/webexport/profiles/usdz.py`, `writers/usdz.py`): `UsdUtils.CreateNewUsdzPackage` packs the USD folder export into one archive, with a profile for what Quick Look reads and does not. `inventory.gather` now reads a packaged layer's inner extension, so the census no longer calls a correct `.usdz` fix-first.
+
 ### Fixed
 
 - When `/WebSettings` has no `web:title`, the viewer now titles the page and the HUD with the stage file name, as blueprint section 4.5 says, and records where the title came from. A browser check covers it.
