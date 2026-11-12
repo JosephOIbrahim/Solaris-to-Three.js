@@ -4,6 +4,10 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.6.8] - 2026-11-12
+
+This release covers the v0.6.7 handoff update.
+
 ### Changed
 
 - `plan/wave3-handoff.md` is updated for v0.6.7: the five patches since v0.6.2 and what each changed, the 175-test baseline, and the three changelog shape checks. The on-demand browser dispatch on `d6b3b7a` passed 18 of 18 and is recorded.
@@ -187,7 +191,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.7...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.8...HEAD
+[0.6.8]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.8
 [0.6.7]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.7
 [0.6.6]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.6
 [0.6.5]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.5
