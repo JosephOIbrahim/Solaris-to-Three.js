@@ -5,10 +5,14 @@ PhysicalMaterial for shading, Switch for a material variant set (one group per l
 DEF/USE for a PointInstancer, Viewpoint for the camera, DirectionalLight and PointLight for
 the lights X3D 4.0 can express.
 
-Everything is written from the composed stage, so references and payloads are flattened. World
-transforms are baked into coordinates, exactly as the glTF writer does, so no rotation maths goes
-into the file. A texture is copied beside the .x3d and referenced by URL, which is how X3D loads
-images. validate_x3d() re-reads the file and checks what the M8 test checks.
+Everything is written from the composed stage, so references and payloads are flattened. Static
+world transforms are baked into coordinates, exactly as the glTF writer does. A prim whose
+local-to-world changes over the stage's time range cannot have that baked: it becomes its own
+local Shape under a DEF'd Transform, with a TimeSensor, an OrientationInterpolator or a
+PositionInterpolator per moving channel, and ROUTE statements wiring them to the Transform. The
+static translation, rotation and scale come from the stage start time. A texture is copied beside
+the .x3d and referenced by URL, which is how X3D loads images. validate_x3d() re-reads the file
+and checks what the M8 test checks, including ROUTE targets and interpolator key counts.
 """
 from __future__ import annotations
 
@@ -98,6 +102,103 @@ def _world_points(prim, points):
     return [xform.Transform(Gf.Vec3d(p)) for p in points]
 
 
+def _stage_time(prim) -> float:
+    """The time a static node is written at: the stage start, else 1."""
+    stage = prim.GetStage()
+    return float(stage.GetStartTimeCode() if stage.GetStartTimeCode() else 1.0)
+
+
+def _trs(prim, time: float) -> dict:
+    """Translation, rotation (x, y, z, w) and scale from a prim's local-to-world at one time."""
+    matrix = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode(time))
+    translation = matrix.ExtractTranslation()
+    scale = [Gf.Vec3d(matrix.GetColumn(i)[0], matrix.GetColumn(i)[1],
+                      matrix.GetColumn(i)[2]).GetLength() for i in range(3)]
+    quat = matrix.ExtractRotationQuat()
+    imag = quat.GetImaginary()
+    return {"translation": [float(translation[0]), float(translation[1]), float(translation[2])],
+            "rotation": [float(imag[0]), float(imag[1]), float(imag[2]), float(quat.GetReal())],
+            "scale": [float(s) if s else 1.0 for s in scale]}
+
+
+def _same(a: dict, b: dict, eps: float = 1e-6) -> bool:
+    return all(abs(x - y) <= eps for key in a for x, y in zip(a[key], b[key]))
+
+
+def _animated(prim) -> bool:
+    """True when the prim's local-to-world differs across the stage's time range.
+
+    The same three-probe test as the glTF writer: start, middle and end. Sampling every frame
+    would be more thorough but this decides whether to pay for a bake at all, and it is the
+    contract the glTF output already keeps.
+    """
+    stage = prim.GetStage()
+    start, end = stage.GetStartTimeCode(), stage.GetEndTimeCode()
+    if start is None or end is None or end <= start:
+        return False
+    probes = [_trs(prim, start), _trs(prim, (start + end) / 2.0), _trs(prim, end)]
+    return not (_same(probes[0], probes[1]) and _same(probes[1], probes[2]))
+
+
+def _axis_angle(rotation, fallback_axis):
+    """A quaternion (x, y, z, w) as X3D axis + angle, keeping the angle continuous.
+
+    w may be negative when the caller has unwrapped the quaternion path past 180 degrees. atan2
+    then returns an angle up to 2*pi, which is what a full turn needs: collapsing it to the
+    shortest arc would spin the object backwards. A rotation with no imaginary part (identity,
+    or the -1 quaternion that is a 360 degree turn) has no axis of its own, so the previous axis
+    is reused.
+    """
+    x, y, z, w = rotation
+    length = math.sqrt(x * x + y * y + z * z)
+    angle = 2.0 * math.atan2(length, w)
+    if length > 1e-12:
+        return (x / length, y / length, z / length), angle
+    return fallback_axis, angle
+
+
+def _rotation_keys(samples) -> list[tuple[tuple[float, float, float], float]]:
+    """One axis + angle per sample, with the quaternion signs made continuous first.
+
+    Matrix.ExtractRotationQuat() may return q or -q for the same orientation. Comparing each
+    quaternion with the previous one and flipping when the dot product is negative keeps the
+    baked path short, so a sampled spin never jumps a full turn between two keys.
+    """
+    rotations, previous = [], None
+    for sample in samples:
+        x, y, z, w = sample["rotation"]
+        if previous is not None and (x * previous[0] + y * previous[1]
+                                     + z * previous[2] + w * previous[3]) < 0.0:
+            x, y, z, w = -x, -y, -z, -w
+        previous = (x, y, z, w)
+        rotations.append(previous)
+    fallback = (0.0, 1.0, 0.0)
+    for x, y, z, _ in rotations:
+        length = math.sqrt(x * x + y * y + z * z)
+        if length > 1e-12:
+            fallback = (x / length, y / length, z / length)
+            break
+    keys, axis = [], fallback
+    for rotation in rotations:
+        axis, angle = _axis_angle(rotation, axis)
+        keys.append((axis, angle))
+    return keys
+
+
+def _frames(stage) -> tuple[float, float, float, list[int]]:
+    """(start, end, fps, frames) sampled across the stage's range.
+
+    A very long range is decimated so the file stays bounded; the last frame is always kept.
+    """
+    start, end = int(stage.GetStartTimeCode()), int(stage.GetEndTimeCode())
+    fps = stage.GetTimeCodesPerSecond() or stage.GetFramesPerSecond() or 24.0
+    step = max(1, round((end - start + 1) / 600))
+    frames = list(range(start, end + 1, step))
+    if frames[-1] != end:
+        frames.append(end)
+    return start, end, float(fps), frames
+
+
 def _is_above(parent: str, child: str) -> bool:
     return child == parent or child.startswith(parent.rstrip("/") + "/")
 
@@ -161,6 +262,7 @@ class X3dWriter:
 
         root = ET.Element("X3D", {"profile": "Immersive", "version": "4.0"})
         scene = ET.SubElement(root, "Scene")
+        self.scene = scene  # TimeSensors, interpolators and ROUTEs live beside the nodes
         self._viewpoint(scene, stage)
         self._lights(scene, stage)
 
@@ -195,9 +297,73 @@ class X3dWriter:
         if not counts or not indices or not points:
             return
         tris = triangulate(counts, indices)
-        world = _world_points(prim, points)
         bound = material or UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
-        self._shape(parent, prim, world, tris, _name(prim.GetName()) + label_suffix, bound)
+        label = _name(prim.GetName()) + label_suffix
+        if _animated(prim):
+            self._moving_mesh(parent, prim, points, tris, label, bound, label_suffix)
+        else:
+            self._shape(parent, prim, _world_points(prim, points), tris, label, bound)
+
+    def _moving_mesh(self, parent, prim, points, tris, label, bound, label_suffix):
+        """A moving prim: its object-space Shape under a DEF'd Transform, then the bake.
+
+        The Transform starts at the stage start time so a viewer that has not run the animation
+        yet, or has it paused at zero, sees the same pose as USD at the first frame. The
+        geometry stays local because the interpolators move the Transform, not the points.
+        """
+        name = _name("node_" + prim.GetPath().pathString.strip("/") + label_suffix)
+        start, end, fps, frames = _frames(prim.GetStage())
+        samples = [_trs(prim, frame) for frame in frames]
+        transform = ET.SubElement(parent, "Transform", {"DEF": name})
+        at_start = samples[0]
+        if any(abs(v) > 1e-9 for v in at_start["translation"]):
+            transform.set("translation", _vec(at_start["translation"], 3))
+        axis, angle = _axis_angle(at_start["rotation"], (0.0, 1.0, 0.0))
+        if abs(angle) > 1e-9:
+            transform.set("rotation", f"{_vec(axis, 3)} {_num(angle)}")
+        if any(abs(v - 1.0) > 1e-9 for v in at_start["scale"]):
+            transform.set("scale", _vec(at_start["scale"], 3))
+        self._shape(transform, prim, points, tris, label, bound)
+        self._animate(name, start, end, fps, frames, samples)
+
+    def _animate(self, node_name, start, end, fps, frames, samples):
+        """TimeSensor plus one interpolator per channel that actually changes.
+
+        Key times are fractions of the stage range, as X3D interpolators expect. X3D has no
+        scale interpolator, so a scale-only animation is left at its start pose; every channel
+        that never changes is skipped rather than written as a constant.
+        """
+        translation_moves = not all(
+            _same({"translation": samples[0]["translation"]},
+                  {"translation": sample["translation"]}) for sample in samples)
+        rotation_moves = not all(
+            _same({"rotation": samples[0]["rotation"]},
+                  {"rotation": sample["rotation"]}) for sample in samples)
+        if not (translation_moves or rotation_moves):
+            return
+        keys = " ".join(_num((frame - start) / float(end - start)) for frame in frames)
+        sensor = _name("time_" + node_name)
+        ET.SubElement(self.scene, "TimeSensor", {
+            "DEF": sensor, "cycleInterval": _num((end - start) / fps), "loop": "true"})
+        if rotation_moves:
+            values = " ".join(f"{_vec(axis, 3)} {_num(angle)}"
+                              for axis, angle in _rotation_keys(samples))
+            interpolator = _name("rot_" + node_name)
+            ET.SubElement(self.scene, "OrientationInterpolator", {
+                "DEF": interpolator, "key": keys, "keyValue": values})
+            self._route(sensor, "fraction_changed", interpolator, "set_fraction")
+            self._route(interpolator, "value_changed", node_name, "set_rotation")
+        if translation_moves:
+            values = " ".join(_vec(sample["translation"], 3) for sample in samples)
+            interpolator = _name("pos_" + node_name)
+            ET.SubElement(self.scene, "PositionInterpolator", {
+                "DEF": interpolator, "key": keys, "keyValue": values})
+            self._route(sensor, "fraction_changed", interpolator, "set_fraction")
+            self._route(interpolator, "value_changed", node_name, "set_translation")
+
+    def _route(self, source: str, source_field: str, target: str, target_field: str) -> None:
+        ET.SubElement(self.scene, "ROUTE", {"fromNode": source, "fromField": source_field,
+                                            "toNode": target, "toField": target_field})
 
     def _variant_switch(self, scene, stage, meshes, material_sets):
         """One Switch child per look; the selected look is shown. Cost: the geometry repeats."""
@@ -241,10 +407,43 @@ class X3dWriter:
                                 triangulate(counts, indices), proto_name,
                                 UsdShade.MaterialBindingAPI(proto).ComputeBoundMaterial()[0])
             shape.set("DEF", proto_name)
-            xform = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
-            for p in positions:
-                world = xform.Transform(Gf.Vec3d(p))
-                transform = ET.SubElement(scene, "Transform", {"translation": _vec(world, 3)})
+            # an instancer that moves needs an animated Transform per instance; a static one
+            # keeps its single baked translation, as before.
+            moving = _animated(prim)
+            if moving:
+                start, end, fps, frames = _frames(stage)
+                matrices = [UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode(frame))
+                            for frame in frames]
+                keys = " ".join(_num((frame - start) / float(end - start)) for frame in frames)
+                sensor = None
+            else:
+                xform = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+            for index, p in enumerate(positions):
+                point = Gf.Vec3d(p)
+                if not moving:
+                    transform = ET.SubElement(scene, "Transform",
+                                              {"translation": _vec(xform.Transform(point), 3)})
+                else:
+                    over_time = [matrix.Transform(point) for matrix in matrices]
+                    moves = any((value - over_time[0]).GetLength() > 1e-9
+                                for value in over_time[1:])
+                    name = _name("inst_" + prim.GetPath().pathString.strip("/") + "_" + str(index))
+                    attributes = {"translation": _vec(over_time[0], 3)}
+                    if moves:
+                        attributes["DEF"] = name
+                    transform = ET.SubElement(scene, "Transform", attributes)
+                    if moves:
+                        if sensor is None:
+                            sensor = _name("time_inst_" + prim.GetPath().pathString.strip("/"))
+                            ET.SubElement(scene, "TimeSensor", {
+                                "DEF": sensor, "cycleInterval": _num((end - start) / fps),
+                                "loop": "true"})
+                        interpolator = _name("pos_" + name)
+                        ET.SubElement(scene, "PositionInterpolator", {
+                            "DEF": interpolator, "key": keys,
+                            "keyValue": " ".join(_vec(value, 3) for value in over_time)})
+                        self._route(sensor, "fraction_changed", interpolator, "set_fraction")
+                        self._route(interpolator, "value_changed", name, "set_translation")
                 ET.SubElement(transform, "Shape", {"USE": proto_name})
 
     def _viewpoint(self, scene, stage):
@@ -315,6 +514,32 @@ def validate_x3d(path: Path) -> tuple[bool, list[str]]:
     for use in [el for el in root.iter() if el.get("USE")]:
         if use.get("USE") not in names:
             problems.append(f"USE {use.get('USE')} has no matching DEF")
+    for route in root.iter("ROUTE"):
+        for end in ("fromNode", "toNode"):
+            target = route.get(end)
+            if not target:
+                problems.append(f"ROUTE has no {end}")
+            elif target not in names:
+                problems.append(f"ROUTE {end} {target} has no matching DEF")
+        for field in ("fromField", "toField"):
+            if not route.get(field):
+                problems.append(f"ROUTE has no {field}")
+    strides = {"OrientationInterpolator": 4, "PositionInterpolator": 3}
+    for tag, stride in strides.items():
+        for interpolator in root.iter(tag):
+            key = interpolator.get("key", "").split()
+            value = interpolator.get("keyValue", "").split()
+            if not key:
+                problems.append(f"{tag} has no key")
+            if len(value) != len(key) * stride:
+                problems.append(f"{tag} has {len(key)} keys and {len(value)} values, "
+                                f"expected {len(key) * stride}")
+    for sensor in root.iter("TimeSensor"):
+        try:
+            if float(sensor.get("cycleInterval", "0")) <= 0:
+                problems.append("TimeSensor cycleInterval must be positive")
+        except ValueError:
+            problems.append(f"TimeSensor cycleInterval {sensor.get('cycleInterval')!r} is not a number")
     for face_set in root.iter("IndexedFaceSet"):
         points = face_set.find("Coordinate")
         if points is None:

@@ -26,6 +26,7 @@ from webexport.report import LossReport  # noqa: E402
 from webexport.writers.x3d import X3dWriter, validate_x3d  # noqa: E402
 
 FIXTURE = ROOT / "fixtures" / "stage" / "shot.usda"
+ANIMATED = ROOT / "fixtures" / "stage-animated" / "animated.usda"
 SCHEMA = "https://www.web3d.org/specifications/x3d-4.0.xsd"
 INCLUDES = ("x3d-4.0-Web3dExtensionsPrivate.xsd", "x3d-4.0-Web3dExtensionsPublic.xsd")
 
@@ -114,6 +115,45 @@ class X3dExportTest(unittest.TestCase):
         # the SphereLight is a PointLight; the RectLight has no X3D equivalent and is reported
         self.assertEqual(len(list(root.iter("PointLight"))), 1)
         self.assertIn("light_dropped", {i.feature for i in result.report.items})
+
+    def test_an_animated_stage_bakes_time_sensors_and_interpolators(self):
+        """The animated fixture turns a full circle over 121 frames, like the glTF test."""
+        result = self.export(ANIMATED)[0]
+        self.assertTrue(result.validated, result.report.render_text())
+        root = ET.parse(str(result.entry_file)).getroot()
+
+        sensors = list(root.iter("TimeSensor"))
+        self.assertEqual(len(sensors), 1)
+        self.assertEqual(sensors[0].get("loop"), "true")
+        self.assertAlmostEqual(float(sensors[0].get("cycleInterval")), 5.0)  # 120 frames at 24 fps
+
+        rotations = list(root.iter("OrientationInterpolator"))
+        positions = list(root.iter("PositionInterpolator"))
+        self.assertEqual(len(rotations), 1)
+        self.assertEqual(positions, [], "the fixture only rotates; a static channel is skipped")
+        keys = rotations[0].get("key").split()
+        values = rotations[0].get("keyValue").split()
+        self.assertEqual(len(keys), 121, "one key per frame of the range")
+        self.assertEqual(len(values), 121 * 4, "SFRotation is axis + angle per key")
+        self.assertEqual(float(keys[0]), 0.0)
+        self.assertAlmostEqual(float(keys[-1]), 1.0)
+        self.assertAlmostEqual(float(values[-1]), 2 * 3.141592653589793, places=3,
+                               msg="the full turn must survive the bake, not collapse to identity")
+
+        # every ROUTE names a DEF that exists, and the transform it drives has one
+        defs = {el.get("DEF") for el in root.iter() if el.get("DEF")}
+        routes = list(root.iter("ROUTE"))
+        self.assertEqual(len(routes), 2, "sensor to interpolator, interpolator to transform")
+        for route in routes:
+            self.assertIn(route.get("fromNode"), defs)
+            self.assertIn(route.get("toNode"), defs)
+        targets = {route.get("toNode") for route in routes if route.get("toField") == "set_rotation"}
+        self.assertEqual(len(targets), 1)
+        self.assertTrue(any(el.get("DEF") in targets for el in root.iter("Transform")))
+        self.assertTrue(validate_x3d(result.entry_file)[0])
+
+        features = {item.feature: item for item in result.report.items}
+        self.assertEqual(features["animation"].severity, "note")
 
     def test_the_file_validates_against_the_official_schema(self):
         schema, reason = official_schema()
