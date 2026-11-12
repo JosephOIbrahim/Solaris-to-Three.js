@@ -4,6 +4,14 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.6.10] - 2026-11-12
+
+This release records the green browser dispatch on `e7ade53`.
+
+### Changed
+
+- The on-demand browser dispatch on `e7ade53`, the v0.6.9 release commit, passed 18 of 18 with both jobs green; this release records it.
+
 ## [0.6.9] - 2026-11-12
 
 This release records the green browser dispatch on `aa60357`.
@@ -199,7 +207,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.9...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.10...HEAD
+[0.6.10]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.10
 [0.6.9]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.9
 [0.6.8]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.8
 [0.6.7]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.7
