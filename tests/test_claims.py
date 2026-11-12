@@ -209,6 +209,41 @@ class ChangelogClaims(unittest.TestCase):
             "Added, Changed or Fixed so the release has notes." % version,
         )
 
+    def test_changelog_starts_with_its_title(self):
+        text = read(CHANGELOG)
+        first = next((line for line in text.splitlines() if line.strip()), "")
+        self.assertEqual(
+            first.strip(),
+            "# Changelog",
+            "CHANGELOG.md no longer opens with its own '# Changelog' title; something was "
+            "prepended above it (a roll that inserts at line 0 does this). Restore the title "
+            "as the first line and move the section back under it.",
+        )
+        title_at = text.index("# Changelog")
+        for match in re.finditer(r"^## \[([^\]]+)\]", text, re.M):
+            self.assertGreater(
+                match.start(),
+                title_at,
+                "'## [%s]' appears above the '# Changelog' title. Every section belongs below it."
+                % match.group(1),
+            )
+
+    def test_version_sections_descend(self):
+        text = read(CHANGELOG)
+        versions = [m.group(1) for m in re.finditer(r"^## \[([^\]]+)\]", text, re.M)
+                    if re.fullmatch(r"\d+\.\d+\.\d+", m.group(1))]
+
+        def semver(name):
+            return tuple(int(part) for part in name.split("."))
+
+        for newer, older in zip(versions, versions[1:]):
+            self.assertGreater(
+                semver(newer),
+                semver(older),
+                "CHANGELOG.md's version headings are out of order: '## [%s]' is above "
+                "'## [%s]'. Releases descend, newest first." % (newer, older),
+            )
+
     def test_no_section_repeats_a_bullet_from_an_older_section(self):
         sections = changelog_sections(read(CHANGELOG))
         problems = []

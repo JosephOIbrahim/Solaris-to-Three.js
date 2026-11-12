@@ -4,6 +4,11 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+### Changed
+
+- `tests/test_claims.py` now checks the changelog's structure as well as its words: the file must open with its `# Changelog` title, and every `## [x.y.z]` heading must descend. Both checks were verified against a deliberately broken file, and both fail on it.
+
+
 ## [0.6.4] - 2026-11-12
 
 This release covers the HDA format assertion.
