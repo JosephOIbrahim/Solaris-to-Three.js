@@ -4,9 +4,13 @@
     reports = check(stage, ["usd_folder"])                       # the LossReports, nothing written
     results = export(stage, ["usd_folder"], "D:/web/hero", None)  # list[ExportResult]
 
-export() reads the stage once (inventory.gather), builds each format's LossReport, and only then
-runs that format's writer (principle 1). A report with any "blocks" item writes nothing for that
-format: its ExportResult has no files, 0 bytes, validated False, and the report says why.
+export() reads the stage once (inventory.gather), builds every format's LossReport, and only then
+runs the writers (principle 1). A report with any "blocks" item writes nothing for that format:
+its ExportResult has no files, 0 bytes, validated False, and the report says why.
+
+Every report is built before the first writer runs: a writer that reads variants by selecting
+them (glTF and X3D both round-trip the selection while they read) can leave the source root
+layer dirty, and a report built after that would wrongly call the stage unsaved.
 
 An anonymous root layer (a Houdini LOP stage) is flattened and staged to a temporary file first,
 because the writer plans from files on disk; see _materialized().
@@ -154,9 +158,11 @@ def export(stage: Usd.Stage, formats, out_dir, settings: WebSettings | None = No
         facts = gather(live, track_types=web_census.UNTESTED_TYPES)  # the one traversal
         if settings is None:
             settings = read_settings(live)
+        # Every report before any writer: a writer's read-only variant round-trip can dirty the
+        # source root, and a later report must still describe the stage as it arrived.
+        prepared = [_assess(live, fmt, facts, jev_on) for fmt in formats]
         results = []
-        for fmt in formats:
-            report, writer = _assess(live, fmt, facts, jev_on)
+        for fmt, (report, writer) in zip(formats, prepared):
             if any(i.severity == "blocks" for i in report.items):  # principle 1: nothing is written
                 results.append(ExportResult(fmt, writer.entry_file(live, out_dir), [], 0, report, False))
                 continue
