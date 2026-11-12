@@ -99,6 +99,23 @@ def attribute_stage(folder: Path, target: str) -> Path:
     return folder / "attr.usda"
 
 
+def time_range_stage(folder: Path) -> Path:
+    """A static quad with a declared time range and nothing that moves."""
+    folder.mkdir(parents=True, exist_ok=True)
+    stage = Usd.Stage.CreateNew(str(folder / "still.usda"))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+    stage.SetStartTimeCode(1)
+    stage.SetEndTimeCode(24)
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/root").GetPrim())
+    mesh = UsdGeom.Mesh.Define(stage, "/root/quad")
+    mesh.CreatePointsAttr(QUAD)
+    mesh.CreateFaceVertexCountsAttr([4])
+    mesh.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    mesh.CreateSubdivisionSchemeAttr("none")
+    stage.Save()
+    return folder / "still.usda"
+
+
 def scale_stage(folder: Path) -> Path:
     """A quad under a parent that scales from 1 to 2 over the range; it never moves or rotates."""
     folder.mkdir(parents=True, exist_ok=True)
@@ -213,6 +230,17 @@ class X3dExportTest(unittest.TestCase):
 
         features = {item.feature: item for item in result.report.items}
         self.assertEqual(features["animation"].severity, "note")
+        self.assertEqual(features["animation"].count, 1, "one mesh's local-to-world moves")
+        self.assertIn("xform animation on 1 prim", features["animation"].becomes)
+
+    def test_a_time_range_without_motion_reports_no_animation(self):
+        """A declared range is not motion: nothing moves, so there is nothing to report."""
+        with tempfile.TemporaryDirectory() as folder:
+            stage_path = time_range_stage(Path(folder))
+            report = api.check(Usd.Stage.Open(str(stage_path)), ["x3d"])[0]
+            features = {item.feature for item in report.items}
+            self.assertNotIn("animation", features)
+            self.assertNotIn("animated_attribute", features)
 
     def test_an_animated_non_transform_attribute_is_reported(self):
         """X3D bakes xforms only; animated points, shader inputs and visibility are one item."""

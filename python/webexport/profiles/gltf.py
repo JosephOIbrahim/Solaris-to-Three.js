@@ -19,7 +19,7 @@ translation, and the writer's structural validation catches its own mistakes.
 """
 from __future__ import annotations
 
-from ..inventory import Inventory, animated_attributes
+from ..inventory import Inventory, animated_attributes, xform_animated
 from ..report import LossItem
 
 EMBEDDABLE = {".png", ".jpg", ".jpeg"}
@@ -85,9 +85,12 @@ class GltfProfile:
                                "KHR_materials_variants: every look is in the file and the player picks one"))
         if self.inv.volumes:
             items.append(_item("changes", "volume", self.inv.volumes, "dropped; glTF has no volume prim"))
-        if self.inv.time_range and self.inv.time_range[0] != self.inv.time_range[1]:
-            items.append(_item("note", "animation", [self.inv.root_layer],
-                               "xform animation baked as glTF animations; other animated attributes are not"))
+        moved = xform_animated(self.stage) if self.stage is not None else []
+        if moved:
+            n = len(moved)
+            items.append(_item("note", "animation", moved,
+                               f"xform animation on {n} prim{'s' if n != 1 else ''} baked as glTF "
+                               "animations; other animated attributes are not"))
         moving = animated_attributes(self.stage) if self.stage is not None else []
         if moving:
             items.append(_item("changes", "animated_attribute", moving,

@@ -16,7 +16,7 @@ into the Switch (which costs file size, not correctness).
 """
 from __future__ import annotations
 
-from ..inventory import Inventory, animated_attributes, scale_animated
+from ..inventory import Inventory, animated_attributes, scale_animated, xform_animated
 from ..report import LossItem
 
 FETCHABLE = {".png", ".jpg", ".jpeg"}
@@ -78,17 +78,20 @@ class X3dProfile:
                                "export one file per look if size matters"))
         if self.inv.volumes:
             items.append(_item("changes", "volume", self.inv.volumes, "dropped; X3D has no volume prim"))
-        if self.inv.time_range and self.inv.time_range[0] != self.inv.time_range[1]:
-            scaling = scale_animated(self.stage) if self.stage is not None else []
+        if self.stage is not None:
+            scaling = scale_animated(self.stage)
             if scaling:
                 items.append(_item("changes", "animation", scaling,
                                    "rotation and translation baked; scale change not representable "
                                    "in X3D",
                                    "bake the scale into the mesh points, or accept the start pose"))
             else:
-                items.append(_item("note", "animation", [self.inv.root_layer],
-                                   "xform animation baked as TimeSensor and interpolators; "
-                                   "other animated attributes are not"))
+                moved = xform_animated(self.stage)
+                if moved:
+                    n = len(moved)
+                    items.append(_item("note", "animation", moved,
+                                       f"xform animation on {n} prim{'s' if n != 1 else ''} baked as "
+                                       "TimeSensor and interpolators; other animated attributes are not"))
         moving = animated_attributes(self.stage) if self.stage is not None else []
         if moving:
             items.append(_item("changes", "animated_attribute", moving,
