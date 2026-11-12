@@ -9,8 +9,8 @@ web census, so the two cannot disagree about what is on the stage.
 
 The traversal is the census's: every active, loaded, defined prim, instance proxies
 included. Pure pxr (principle 3): runs under usd-core and under hython. The animation checks
-(animated_attributes, scale_animated) are separate short walks the glTF and X3D profiles call;
-they sample no frames.
+(animated_attributes, scale_animated, xform_animated) are separate short walks the glTF and
+X3D profiles call; they sample no frames.
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ __all__ = [
     "Inventory", "MeshFact", "InstancerFact", "MaterialFact", "LightFact", "CameraFact",
     "VariantFact", "CompositionFact", "TextureFact", "StageFacts",
     "build_inventory", "gather", "is_absolute", "inside", "asset_location",
-    "animated_attributes", "scale_animated",
+    "animated_attributes", "scale_animated", "xform_animated",
 ]
 
 MaterialKind = Literal["preview", "materialx", "other"]
@@ -590,6 +590,46 @@ def _world_scale(prim, time: float) -> tuple[float, float, float]:
                  for i in range(3))
 
 
+def _sample_times(stage: Usd.Stage) -> tuple[float, float, float] | None:
+    """The writers' three probes: start, middle and end. None when the stage declares no range."""
+    start, end = stage.GetStartTimeCode(), stage.GetEndTimeCode()
+    if start is None or end is None or end <= start:
+        return None
+    return start, (start + end) / 2.0, end
+
+
+def _world_matrix(prim, time: float):
+    return UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode(time))
+
+
+def _matrix_moved(a, b, eps: float = 1e-6) -> bool:
+    return any(abs(a[row][col] - b[row][col]) > eps for row in range(4) for col in range(4))
+
+
+def xform_animated(stage: Usd.Stage) -> list[str]:
+    """Prim paths the writers bake whose local-to-world differs across the stage's range.
+
+    The writers bake a mesh's or point instancer's world transform, so those are the prims
+    probed: three samples (start, middle, end) like scale_animated, no per-frame work. A pose
+    that returns to its start at all three probes is missed by design, the writers' own contract.
+    """
+    times = _sample_times(stage)
+    if times is None:
+        return []
+    found, seen = [], set()
+    for prim in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies()):
+        if not (prim.IsA(UsdGeom.Mesh) or prim.IsA(UsdGeom.PointInstancer)):
+            continue
+        path = str(prim.GetPath())
+        if path in seen:
+            continue
+        matrices = [_world_matrix(prim, time) for time in times]
+        if _matrix_moved(matrices[0], matrices[1]) or _matrix_moved(matrices[1], matrices[2]):
+            seen.add(path)
+            found.append(path)
+    return found
+
+
 def scale_animated(stage: Usd.Stage) -> list[str]:
     """Prim paths whose local-to-world scale differs across the stage's range.
 
@@ -597,10 +637,9 @@ def scale_animated(stage: Usd.Stage) -> list[str]:
     extraction the X3D writer uses). This is the scale change X3D has no interpolator for: it
     would be left at the start pose, so the profile names it rather than dropping it silently.
     """
-    start, end = stage.GetStartTimeCode(), stage.GetEndTimeCode()
-    if start is None or end is None or end <= start:
+    times = _sample_times(stage)
+    if times is None:
         return []
-    times = (start, (start + end) / 2.0, end)
     found, seen = [], set()
     for prim in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies()):
         if not prim.IsA(UsdGeom.Xformable):
