@@ -115,10 +115,42 @@ class GltfExportTest(unittest.TestCase):
         self.assertIn("subdivision", features)       # catmullClark ships as its cage
         self.assertEqual(features["subdivision"].severity, "changes")
         self.assertIn("light_dropped", features)     # the RectLight has no punctual equivalent
-        self.assertIn("material_variant", features)  # KHR_materials_variants is not written yet
+        self.assertIn("material_variant", features)  # encoded, and reported as a note not a loss
+        self.assertEqual(features["material_variant"].severity, "note")
         self.assertIn("instancing", features)
         # the fixture binds no image to a surface, so there is nothing to embed and no note
         self.assertNotIn("embedded_image", features)
+
+    def test_material_look_variants_are_encoded(self):
+        """The fixture's 'look' set has three looks; all three must be in the file."""
+        result = self.export()[0]
+        doc = read_glb(result.entry_file)
+        self.assertIn("KHR_materials_variants", doc["extensionsUsed"])
+        variants = [v["name"] for v in doc["extensions"]["KHR_materials_variants"]["variants"]]
+        self.assertEqual(sorted(variants), ["chrome", "ember", "gold"])
+
+        mapped = {}
+        for mesh in doc["meshes"]:
+            for primitive in mesh["primitives"]:
+                maps = primitive.get("extensions", {}).get("KHR_materials_variants", {}).get("mappings", [])
+                if maps:
+                    mapped[mesh["name"]] = maps
+        self.assertIn("orb_std", mapped, "the orb is the mesh the look variant set changes")
+        mappings = mapped["orb_std"]
+        self.assertEqual(len(mappings), 3)
+        self.assertEqual({m["variants"][0] for m in mappings}, {0, 1, 2},
+                         "every declared variant must be covered")
+        looks = [tuple(round(c, 2) for c in
+                       doc["materials"][m["material"]]["pbrMetallicRoughness"]["baseColorFactor"][:3])
+                 for m in mappings]
+        self.assertEqual(len(set(looks)), 3, f"each look needs its own material, got {looks}")
+
+        by_name = {variants[m["variants"][0]]: doc["materials"][m["material"]]["pbrMetallicRoughness"]
+                   for m in mappings}
+        self.assertAlmostEqual(by_name["ember"]["metallicFactor"], 0.0, places=3)
+        self.assertAlmostEqual(by_name["gold"]["metallicFactor"], 1.0, places=3)
+        self.assertAlmostEqual(by_name["chrome"]["metallicFactor"], 1.0, places=3)
+        self.assertLess(by_name["chrome"]["roughnessFactor"], by_name["ember"]["roughnessFactor"])
 
     def test_a_png_samples_into_the_file(self):
         with tempfile.TemporaryDirectory() as folder:

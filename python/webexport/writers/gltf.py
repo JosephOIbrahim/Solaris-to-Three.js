@@ -48,6 +48,7 @@ class _Glb:
         }
         self._materials: dict[str, int] = {}
         self._images: dict[str, int] = {}
+        self.variants: list[str] = []  # KHR_materials_variants names, in the order they are met
 
     def view(self, data: bytes, target: int | None = None) -> int:
         while len(self.bin) % 4:
@@ -94,26 +95,12 @@ class _Glb:
         self._images[str(path)] = index
         return index
 
-    def material(self, material: UsdShade.Material | None, label: str) -> int:
-        key = str(material.GetPath()) if material else f"default:{label}"
+    def material(self, material: UsdShade.Material | None, label: str, tag: str = "",
+                 look=None) -> int:
+        key = (str(material.GetPath()) if material else f"default:{label}") + (f"|{tag}" if tag else "")
         if key in self._materials:
             return self._materials[key]
-        base, metal, rough, texture = (0.8, 0.8, 0.8), 0.0, 0.5, None
-        if material:
-            surface = material.ComputeSurfaceSource("universal")[0]
-            if surface:
-                for name in ("diffuseColor", "base_color", "metallic", "metalness",
-                             "roughness", "specular_roughness"):
-                    value = surface.GetInput(name).Get() if surface.GetInput(name) else None
-                    if value is None:
-                        continue
-                    if name in ("diffuseColor", "base_color"):
-                        base = (float(value[0]), float(value[1]), float(value[2]))
-                    elif name in ("metallic", "metalness"):
-                        metal = float(value)
-                    else:
-                        rough = float(value)
-                texture = _base_colour_texture(surface)
+        base, metal, rough, texture = look if look is not None else _appearance(material)
         pbr = {"baseColorFactor": [base[0], base[1], base[2], 1.0],
                "metallicFactor": metal, "roughnessFactor": rough}
         entry = {"name": label, "pbrMetallicRoughness": pbr}
@@ -134,6 +121,49 @@ class _Glb:
         return (b"glTF" + struct.pack("<II", 2, total)
                 + struct.pack("<I4s", len(chunk), b"JSON") + chunk
                 + struct.pack("<I4s", len(body), b"BIN\0") + body)
+
+
+def _appearance(material):
+    """(base colour, metallic, roughness, texture path) as the material reads right now.
+
+    Pure: nothing is added to the file, so a caller can compare two variants looks before
+    deciding whether the primitive needs a KHR_materials_variants mapping at all.
+    """
+    base, metal, rough, texture = (0.8, 0.8, 0.8), 0.0, 0.5, None
+    if material:
+        surface = _surface_source(material)
+        if surface:
+            for name in ("diffuseColor", "base_color", "metallic", "metalness",
+                         "roughness", "specular_roughness"):
+                inp = surface.GetInput(name)
+                value = inp.Get() if inp else None
+                if value is None:
+                    continue
+                if name in ("diffuseColor", "base_color"):
+                    base = (float(value[0]), float(value[1]), float(value[2]))
+                elif name in ("metallic", "metalness"):
+                    metal = float(value)
+                else:
+                    rough = float(value)
+            texture = _base_colour_texture(surface)
+    return base, metal, rough, texture
+
+
+def _surface_source(material):
+    """The shader output that shades this material, whichever render context carries it.
+
+    A UsdPreviewSurface material answers "universal". A MaterialX material from Karma answers
+    "mtlx" only: its output is `mtlx:surface`, and asking the wrong context returns nothing,
+    which used to leave every MaterialX material at the default grey.
+    """
+    for context in ("universal", "mtlx"):
+        try:
+            source = material.ComputeSurfaceSource(context)[0]
+        except Exception:  # an unusable context is not an error: try the next one
+            source = None
+        if source and source.GetPrim().IsValid():
+            return source
+    return None
 
 
 def _base_colour_texture(surface) -> Path | None:
@@ -165,6 +195,47 @@ def triangulate(counts, indices) -> list[int]:
         for i in range(1, count - 1):
             out += [face[0], face[i], face[i + 1]]
     return out
+
+
+def _is_above(parent: str, child: str) -> bool:
+    return child == parent or child.startswith(parent.rstrip("/") + "/")
+
+
+def _variant_mappings(glb: _Glb, prim, inv) -> list[dict]:
+    """One mapping per option of every material variant set above this prim.
+
+    The look of a material can be authored inside a variant, so the same material prim renders
+    differently per option. Each option is selected in turn, the material is read under it, and
+    the primitive is mapped to that option's material index. The selection is put back.
+    """
+    if inv is None:
+        return []
+    sets = [v for v in inv.variant_sets
+            if v.kind == "material" and _is_above(v.prim_path, prim.GetPath().pathString)]
+    mappings: list[dict] = []
+    stage = prim.GetStage()
+    for fact in sets:
+        owner = stage.GetPrimAtPath(fact.prim_path)
+        if not owner:
+            continue
+        vset = owner.GetVariantSets().GetVariantSet(fact.set_name)
+        original = vset.GetVariantSelection()
+        looks = []
+        try:
+            for option in fact.options:  # read every look before writing any of them
+                vset.SetVariantSelection(option)
+                bound = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
+                looks.append((option, bound, _appearance(bound)))
+        finally:
+            vset.SetVariantSelection(original)
+        if len({repr(look[2]) for look in looks}) == 1:
+            continue  # this prim looks the same in every variant: nothing to map
+        for option, bound, look in looks:
+            if option not in glb.variants:
+                glb.variants.append(option)
+            index = glb.material(bound, prim.GetName(), tag=f"{fact.set_name}={option}", look=look)
+            mappings.append({"material": index, "variants": [glb.variants.index(option)]})
+    return mappings
 
 
 def _world_points(prim, points):
@@ -244,6 +315,23 @@ def validate_glb(path: Path) -> tuple[bool, list[str]]:
     for i, texture in enumerate(doc.get("textures", [])):
         if texture.get("source", 0) >= len(doc.get("images", [])):
             problems.append(f"texture {i} points at a missing image")
+    declared = doc.get("extensions", {}).get("KHR_materials_variants", {}).get("variants", [])
+    if "KHR_materials_variants" in doc.get("extensionsUsed", []):
+        if not declared:
+            problems.append("KHR_materials_variants is used but declares no variants")
+        for m, mesh in enumerate(doc.get("meshes", [])):
+            for pr, primitive in enumerate(mesh.get("primitives", [])):
+                mappings = primitive.get("extensions", {}).get("KHR_materials_variants", {}).get("mappings", [])
+                seen = set()
+                for mapping in mappings:
+                    if mapping.get("material", 0) >= len(doc.get("materials", [])):
+                        problems.append(f"mesh {m} primitive {pr} maps to a missing material")
+                    for variant in mapping.get("variants", []):
+                        if variant >= len(declared):
+                            problems.append(f"mesh {m} primitive {pr} maps to variant {variant}, only {len(declared)} declared")
+                        seen.add(variant)
+                if mappings and len(seen) != len(declared):
+                    problems.append(f"mesh {m} primitive {pr} covers {len(seen)} of {len(declared)} variants")
     return not problems, problems
 
 
@@ -267,6 +355,7 @@ class GltfWriter:
             entry = self.entry_file(stage, out_dir)
             return ExportResult(FORMAT, entry, [], 0, self.report, False)
 
+        self.inv = inv
         glb = _Glb()
         glb.doc["scenes"][0]["extras"] = _settings_extras(settings)
         for prim in stage.Traverse():
@@ -282,6 +371,11 @@ class GltfWriter:
             if prim.GetTypeName().endswith("Light"):
                 self._light(glb, prim)
 
+        if glb.variants:  # KHR_materials_variants: every look, and the player picks one
+            if "KHR_materials_variants" not in glb.doc["extensionsUsed"]:
+                glb.doc["extensionsUsed"].append("KHR_materials_variants")
+            glb.doc.setdefault("extensions", {}).setdefault(
+                "KHR_materials_variants", {})["variants"] = [{"name": n} for n in glb.variants]
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         entry = self.entry_file(stage, out_dir)
@@ -312,9 +406,13 @@ class GltfWriter:
         if uv:
             attributes["TEXCOORD_0"] = glb.accessor(uv, "float", "VEC2")
         bound = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
-        glb.doc["meshes"].append({"name": prim.GetName(), "primitives": [{
-            "attributes": attributes, "indices": glb.accessor(tris, "uint", "SCALAR", target=34963),
-            "mode": 4, "material": glb.material(bound, prim.GetName())}]})
+        primitive = {"attributes": attributes,
+                     "indices": glb.accessor(tris, "uint", "SCALAR", target=34963),
+                     "mode": 4, "material": glb.material(bound, prim.GetName())}
+        mappings = _variant_mappings(glb, prim, getattr(self, "inv", None))
+        if mappings:
+            primitive["extensions"] = {"KHR_materials_variants": {"mappings": mappings}}
+        glb.doc["meshes"].append({"name": prim.GetName(), "primitives": [primitive]})
         glb.node(name=str(prim.GetPath()), mesh=len(glb.doc["meshes"]) - 1)
 
     def _instancer(self, glb: _Glb, prim) -> None:

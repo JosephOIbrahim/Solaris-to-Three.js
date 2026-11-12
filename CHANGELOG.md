@@ -30,6 +30,8 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 - The Web Export node writes glTF too: the **glTF** format toggle is live and on by default, and `hou_node` asks the core for whichever formats are ticked. On hython 22.0.400, .492 and .466 the fixture gives GO and Export writes `hero.usda`, `hero.glb` and their assets (`external/`) into one folder.
 
+- glTF material looks survive: the writer writes `KHR_materials_variants`, evaluates the bound material under each look of a material variant set and maps the primitive to one material per look. The fixture's `look` set now travels as chrome, ember and gold, with their own base colours, metalness and roughness, and the profile reports it as a note instead of a loss. Materials also resolve through the `mtlx` render context now, so MaterialX surfaces export their real values instead of the default grey.
+
 ### Fixed
 
 - When `/WebSettings` has no `web:title`, the viewer now titles the page and the HUD with the stage file name, as blueprint section 4.5 says, and records where the title came from. A browser check covers it.

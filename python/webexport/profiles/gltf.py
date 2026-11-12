@@ -78,9 +78,8 @@ class GltfProfile:
                                "export one file per look if the viewer must switch"))
         mat_variants = [f"{v.prim_path}:{v.set_name}" for v in self.inv.variant_sets if v.kind == "material"]
         if mat_variants:
-            items.append(_item("changes", "material_variant", mat_variants,
-                               "not encoded yet: the file carries the selected look",
-                               "KHR_materials_variants is the next step for this format"))
+            items.append(_item("note", "material_variant", mat_variants,
+                               "KHR_materials_variants: every look is in the file and the player picks one"))
         if self.inv.volumes:
             items.append(_item("changes", "volume", self.inv.volumes, "dropped; glTF has no volume prim"))
         if self.inv.time_range and self.inv.time_range[0] != self.inv.time_range[1]:
