@@ -4,6 +4,12 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+### Added
+
+- The loss report now says exactly what animation was baked: X3D names a scale change it cannot represent instead of silently holding the start pose, and both glTF and X3D report animated points, shader inputs and visibility as `animated_attribute` at the current time sample only.
+- The blueprint records what is still unverified: Quick Look, the start/middle/end animation probe's blind spot, and what the browser suite proves on CI.
+
+
 ## [0.6.1] - 2026-11-12
 
 This release keeps the README's version line in step with the package.
