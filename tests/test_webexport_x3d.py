@@ -316,6 +316,48 @@ class X3dExportTest(unittest.TestCase):
         document = etree.parse(str(result.entry_file))
         self.assertTrue(schema.validate(document), [e.message for e in schema.error_log][:5])
 
+    def test_a_uv_seam_writes_per_corner_texture_coordinates(self):
+        """B3: a seam means one point with two UVs, which only per-corner UVs can carry."""
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            stage = Usd.Stage.CreateNew(str(folder / "seam.usda"))
+            UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+            root = UsdGeom.Xform.Define(stage, "/root")
+            stage.SetDefaultPrim(root.GetPrim())
+            mesh = UsdGeom.Mesh.Define(stage, "/root/cloth")
+            # two quads sharing four points: a seam across the middle
+            mesh.CreatePointsAttr(Vt.Vec3fArray([Gf.Vec3f(0, 0, 0), Gf.Vec3f(1, 0, 0),
+                                                 Gf.Vec3f(2, 0, 0), Gf.Vec3f(3, 0, 0),
+                                                 Gf.Vec3f(0, 0, 1), Gf.Vec3f(1, 0, 1),
+                                                 Gf.Vec3f(2, 0, 1), Gf.Vec3f(3, 0, 1)]))
+            mesh.CreateFaceVertexCountsAttr([4, 4])
+            mesh.CreateFaceVertexIndicesAttr([0, 1, 5, 4, 1, 2, 6, 5])
+            primvar = UsdGeom.PrimvarsAPI(mesh).CreatePrimvar(
+                "st", Sdf.ValueTypeNames.TexCoord2fArray, UsdGeom.Tokens.faceVarying)
+            primvar.Set(Vt.Vec2fArray([
+                Gf.Vec2f(0, 0), Gf.Vec2f(0.5, 0), Gf.Vec2f(0.5, 1), Gf.Vec2f(0, 1),
+                Gf.Vec2f(0.5, 0), Gf.Vec2f(1, 0), Gf.Vec2f(1, 1), Gf.Vec2f(0.5, 1)]))
+            stage.GetRootLayer().Save()
+
+            result = api.export(stage, ["x3d"], self.out)[0]
+            self.assertTrue(result.validated, result.report.render_text())
+            root = ET.parse(str(result.entry_file)).getroot()
+            face_set = next(root.iter("IndexedFaceSet"))
+            coords = face_set.find("TextureCoordinate")
+            self.assertIsNotNone(coords, "a mesh with UVs must write TextureCoordinate")
+            self.assertTrue(face_set.get("texCoordIndex"), "texCoordIndex must accompany it")
+            uv_values = [tuple(float(x) for x in pair.split())
+                         for pair in coords.get("point", "").split()]
+            # uv points are pairs of numbers, not vertices: read them two at a time
+            flat = coords.get("point", "").split()
+            pairs = [(float(flat[i]), float(flat[i + 1])) for i in range(0, len(flat), 2)]
+            self.assertEqual(len(pairs), 12, "one UV per corner after the quads are triangulated")
+            self.assertNotEqual(pairs[0:6], pairs[6:12],
+                                "the two sides of the seam must not collapse to the same UVs")
+            # -1 ends every face, not just the last one
+            self.assertIn(" -1 ", face_set.get("coordIndex") + " ", "each face ends with -1")
+            self.assertIn(" -1 ", face_set.get("texCoordIndex") + " ")
+
     def test_instanceable_references_produce_a_nonempty_scene(self):
         """B2 on the X3D side: the Scene must not be empty, and must not raise."""
         with tempfile.TemporaryDirectory() as folder:

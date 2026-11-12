@@ -97,6 +97,28 @@ def triangulate(counts, indices) -> list[int]:
     return out
 
 
+def _uvs(prim, indices, point_count):
+    """One (u, v) per triangle corner. USD's UV origin is bottom-left, same as X3D, so no flip."""
+    primvar = UsdGeom.PrimvarsAPI(prim).GetPrimvar("st")
+    if not primvar or not primvar.HasValue():
+        return None
+    values, corners = primvar.Get(), primvar.GetIndices()
+    if not values:
+        return None
+    out = []
+    for corner in range(len(indices)):
+        if corners:
+            index = corners[corner] if corner < len(corners) else 0
+        else:
+            index = indices[corner] if len(values) == point_count else corner
+        if index >= len(values):
+            out.append((0.0, 0.0))
+            continue
+        value = values[index]
+        out.append((float(value[0]), float(value[1])))
+    return out
+
+
 def _world_points(prim, points):
     xform = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
     return [xform.Transform(Gf.Vec3d(p)) for p in points]
@@ -234,11 +256,24 @@ class X3dWriter:
     def _shape(self, parent, prim, points, indices, label: str, bound):
         shape = ET.SubElement(parent, "Shape")
         self._material(shape, bound, label)
-        faces = " ".join(str(i) for i in indices) + " -1" if indices else ""
+        triangles = [indices[i:i + 3] for i in range(0, len(indices), 3)]
+        # -1 ends each face, not only the last one: a single trailing -1 would read as one polygon
+        faces = " ".join(" ".join(str(v) for v in tri) + " -1" for tri in triangles)
         face_set = ET.SubElement(shape, "IndexedFaceSet", {
             "coordIndex": faces, "solid": "false", "creaseAngle": "0.5"})
         coordinate = ET.SubElement(face_set, "Coordinate", {
             "point": " ".join(_vec(p, 3) for p in points)})
+        uv = _uvs(prim, indices, len(points))
+        if uv:
+            ET.SubElement(face_set, "TextureCoordinate", {
+                "point": " ".join(_vec(p, 2) for p in uv)})
+            # UVs are per corner, so texCoordIndex walks corners in order, with the same -1 ends
+            cursor = 0
+            tex_faces = []
+            for tri in triangles:
+                tex_faces.append(" ".join(str(c) for c in range(cursor, cursor + len(tri))) + " -1")
+                cursor += len(tri)
+            face_set.set("texCoordIndex", " ".join(tex_faces))
         coordinate.tail = "\n"
         return shape
 
