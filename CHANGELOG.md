@@ -26,6 +26,8 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 - glTF export (`python/webexport/profiles/gltf.py`, `writers/gltf.py`): `api.export(stage, ["gltf"])` writes one `.glb` with meshes (quads triangulated, world transforms baked), UsdPreviewSurface to PBR, PNG and JPEG base colour textures embedded in the file, a camera, `KHR_lights_punctual` for sphere and distant lights, and `EXT_mesh_gpu_instancing` for PointInstancers. The report says what glTF cannot carry: subdivision as its cage, geometry variants reduced to the selected option, material variants not encoded yet, area and dome lights dropped, and any image that is not PNG or JPEG as a block. `validate_glb()` re-opens the file and checks the container, every accessor and every image.
 
+- The glTF player (`viewer/players/gltf.html`): three's `GLTFLoader` on the exporter's own `fixtures/stage-flat/hero.glb`, with no Needle packages, framed from the model's bounds and lit by `KHR_lights_punctual` when the file carries lights. `tools/make_gltf_fixture.py` rebuilds the fixture, and the browser test now loads it and checks 8 meshes, 36 instances and zero errors.
+
 ### Fixed
 
 - When `/WebSettings` has no `web:title`, the viewer now titles the page and the HUD with the stage file name, as blueprint section 4.5 says, and records where the title came from. A browser check covers it.

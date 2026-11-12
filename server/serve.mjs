@@ -31,6 +31,8 @@ const types = {
   ".css": "text/css",
   ".svg": "image/svg+xml",
   ".png": "image/png",
+  ".glb": "model/gltf-binary",
+  ".gltf": "model/gltf+json",
 };
 
 createServer(async (req, res) => {

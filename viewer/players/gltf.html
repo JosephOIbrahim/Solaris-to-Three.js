@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>glTF · Solaris to three.js</title>
+  <style>
+    :root { color-scheme: dark; --ink: #e8e6e1; --dim: #8d8a84; --line: #2a2926; --bg: #0d0d0c; --accent: #e0a458; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+      font: 13px/1.45 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    #hud { position: fixed; left: 12px; top: 12px; max-width: min(360px, calc(100vw - 24px));
+      background: rgba(13,13,12,.82); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    #hud h1 { font: 600 13px/1.2 inherit; margin: 0 0 6px; }
+    #hud p { margin: 4px 0 0; color: var(--dim); }
+    #status { position: fixed; left: 12px; bottom: 12px; right: 12px; color: var(--dim);
+      white-space: pre-wrap; text-shadow: 0 1px 2px #000; }
+  </style>
+  <!-- The same import map as the main viewer, minus the Needle entries: this player is MIT
+       three.js only. ?three=185 runs it on r185 alongside the main page. -->
+  <script>
+    (() => {
+      const ver = new URLSearchParams(location.search).get("three") === "185" ? "185" : "187";
+      const three = ver === "185" ? "/vendor/three-r185" : "/vendor/three";
+      const map = { imports: {
+        "three": `${three}/build/three.module.js`,
+        "three/addons/": `${three}/examples/jsm/`,
+        "three/examples/jsm/": `${three}/examples/jsm/` } };
+      const s = document.createElement("script");
+      s.type = "importmap";
+      s.textContent = JSON.stringify(map);
+      document.currentScript.after(s);
+      window.__threeVariant = ver;
+    })();
+  </script>
+</head>
+<body>
+  <div id="hud">
+    <h1>glTF · three.js</h1>
+    <p id="sub">loading…</p>
+  </div>
+  <div id="status"></div>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+    // ?model=/fixtures/stage-flat/hero.glb  (the exporter's own output)
+    const modelUrl = new URL(new URLSearchParams(location.search).get("model") || "/fixtures/stage-flat/hero.glb",
+                             location.href).href;
+    const report = { url: modelUrl, revision: THREE.REVISION, ready: false, errors: [],
+                     meshes: 0, instanced: 0, triangles: 0, lights: 0, cameras: 0, materials: 0,
+                     extensions: [], title: null };
+    window.__gltf = report;
+    addEventListener("error", (e) => report.errors.push(String(e.message || e)));
+    addEventListener("unhandledrejection", (e) => report.errors.push(String(e.reason?.message || e.reason)));
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.toneMapping = THREE.AgXToneMapping;
+    document.body.prepend(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x101010);
+    const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.05, 500);
+
+    const status = document.getElementById("status");
+    const loader = new GLTFLoader();
+
+    try {
+      const gltf = await loader.loadAsync(modelUrl);
+      scene.add(gltf.scene);
+      const extras = gltf.scene.userData?.web || gltf.userData?.web || null;
+      report.title = gltf.scene.userData?.web?.title || null;
+      report.extensions = gltf.parser?.json?.extensionsUsed || [];
+
+      let box = new THREE.Box3(), materials = new Set();
+      gltf.scene.traverse((o) => {
+        if (o.isInstancedMesh) report.instanced += o.count;
+        else if (o.isMesh) report.meshes += 1;
+        if (o.isMesh) {
+          const m = Array.isArray(o.material) ? o.material[0] : o.material;
+          if (m) materials.add(m.uuid);
+          if (o.geometry?.index) report.triangles += o.geometry.index.count / 3;
+          else if (o.geometry?.attributes?.position) report.triangles += o.geometry.attributes.position.count / 3;
+        }
+        if (o.isLight) report.lights += 1;
+        if (o.isCamera) report.cameras += 1;
+      });
+      report.materials = materials.size;
+      if (report.cameras === 0) {  // KHR cameras become nodes; add a fallback so the scene is lit and framed
+        box.setFromObject(gltf.scene);
+        if (!box.isEmpty()) {
+          const size = box.getSize(new THREE.Vector3()).length();
+          const centre = box.getCenter(new THREE.Vector3());
+          camera.position.copy(centre).add(new THREE.Vector3(0.7, 0.5, 1).normalize().multiplyScalar(size * 0.9));
+          camera.lookAt(centre);
+          camera.near = Math.max(0.01, size / 500); camera.far = size * 10;
+          camera.updateProjectionMatrix();
+        }
+      }
+      if (report.lights === 0) {  // a glTF with no punctual lights gets a neutral studio so it is visible
+        const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 1.2); scene.add(hemi);
+        const key = new THREE.DirectionalLight(0xffffff, 2.0); key.position.set(3, 5, 4); scene.add(key);
+      }
+      renderer.render(scene, camera);
+      report.ready = true;
+      document.getElementById("sub").textContent =
+        `${report.meshes} meshes · ${report.instanced} instances · ${Math.round(report.triangles)} triangles`;
+      status.textContent = `three r${THREE.REVISION} · ${new URL(modelUrl).pathname}`;
+    } catch (e) {
+      report.errors.push(String(e.message || e));
+      status.textContent = `could not load ${modelUrl}\n${e.message || e}`;
+    }
+
+    addEventListener("resize", () => {
+      renderer.setSize(innerWidth, innerHeight);
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+    });
+    renderer.setAnimationLoop(() => renderer.render(scene, camera));
+  </script>
+</body>
+</html>

@@ -83,6 +83,7 @@ await phone.close();
 
 // /WebSettings: a root layer that sublayers shot.usda and authors web:title and web:showHud = false.
 const WS_TITLE = "WebSettings Fixture"; // must match TITLE in tools/make_websettings_stage.py
+const ORIGIN = new URL(BASE).origin;
 const wsPage = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 wsPage.on("pageerror", (e) => logs.push(`[pageerror] ${e.message}`.slice(0, 400)));
 await wsPage.goto(`${BASE}&stage=/fixtures/stage/shot_websettings.usda`);
@@ -93,6 +94,16 @@ const ws = await wsPage.evaluate(() => ({
 }));
 await shot(wsPage, "07-websettings");
 await wsPage.close();
+
+// The glTF player: the exporter's own fixture, loaded through three's GLTFLoader (MIT).
+const gltfPage = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+gltfPage.on("pageerror", (e) => logs.push(`[pageerror] ${e.message}`.slice(0, 400)));
+await gltfPage.goto(`${ORIGIN}/players/gltf.html?three=${THREE}&model=/fixtures/stage-flat/hero.glb`);
+await gltfPage.waitForFunction(() => window.__gltf?.ready || window.__gltf?.errors?.length, null, { timeout: 120000 });
+await gltfPage.waitForTimeout(800);
+const gltf = await gltfPage.evaluate(() => ({ ...window.__gltf }));
+await shot(gltfPage, "08-gltf-player");
+await gltfPage.close();
 await browser.close();
 
 await writeFile(`${OUT}report.json`, JSON.stringify({ report, logs }, null, 2));
@@ -116,6 +127,10 @@ const checks = [
   [`proxy shows, then hides again (${meshesBefore} -> ${meshesProxyOn} -> ${meshesProxyOff} meshes)`,
     meshesProxyOn > meshesBefore && meshesProxyOff === meshesBefore],
   ["USDLoader route loaded meshes", report.jsRoute?.meshes > 0],
+  [`glTF player loads the exported fixture (${gltf.meshes} meshes, ${gltf.instanced} instances, ` +
+    `${gltf.triangles} triangles, ${gltf.errors.length} errors)`,
+    gltf.ready === true && gltf.errors.length === 0 && gltf.meshes >= 8 && gltf.instanced === 36
+    && gltf.extensions.includes("EXT_mesh_gpu_instancing")],
   [`/WebSettings title applied (document.title = "${ws.title}")`, ws.title === WS_TITLE && ws.report?.applied?.titleSource === "web:title"],
   [`/WebSettings showHud = false hides #hud (display ${ws.hudDisplay})`, ws.hudDisplay === "none"],
   ["/WebSettings stage loaded clean, dome intact", ws.errors.length === 0 && ws.env],
