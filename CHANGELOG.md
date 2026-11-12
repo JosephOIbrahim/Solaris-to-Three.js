@@ -7,6 +7,7 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 ### Added
 
 - `docs/review-2026-11-12.md`, an independent review of the tree at v0.6.10 by three lanes (export core, browser side, docs and tooling), ranked and deduplicated: four blockers, nineteen majors, twelve minors, the areas that held up, and six refinements.
+- `plan/harness-blueprint.md` and `plan/harness-spec.md`: the dev-workflow harness, derived from the review. One rule above all: no gate counts unless it has been seen to fail. Shape is a lean code agent with one orchestrator; primitives are the gate registry, mutation ledger, claims ledger, golden tasks, replay runner and lessons ledger.
 
 ## [0.6.10] - 2026-11-12
 
