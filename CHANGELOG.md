@@ -4,6 +4,10 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+### Changed
+
+- `plan/wave3-handoff.md` is updated for v0.6.8: six patches since v0.6.2 and what each changed, the 175-test baseline, and the browser dispatch on `d6b3b7a`. The dispatch on `aa60357` is recorded as still running rather than claimed green.
+
 ## [0.6.8] - 2026-11-12
 
 This release covers the v0.6.7 handoff update.
