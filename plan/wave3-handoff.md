@@ -8,7 +8,7 @@ Reading path: section 01 for where things stand, 02 for what is next, then 03 an
 
 ### 01. Where things stand (2026-11-12)
 
-01. `package.json`, `README.md` and `CHANGELOG.md` say **v0.6.2**, released 2026-11-12 (pre-release, tag `v0.6.2`). CI is green on the release commit, and the on-demand browser dispatch on it passed 18 of 18. `tests/test_claims.py` now fails if the README version, the current release's bullets, the format list or a relative link drifts from the code.
+01. `package.json`, `README.md` and `CHANGELOG.md` say **v0.6.3**; v0.6.3 adds nothing but this note's refresh, so the state described below is still v0.6.2's. The earlier line read **v0.6.2**, released 2026-11-12 (pre-release, tag `v0.6.2`). CI is green on the release commit, and the on-demand browser dispatch on it passed 18 of 18. `tests/test_claims.py` now fails if the README version, the current release's bullets, the format list or a relative link drifts from the code.
 
 02. One LOP node, `mythandlogic::web_export::1.0`, installs from `py -3.12 scripts/install_package.py` and writes four formats from one Export: USD Folder, glTF (`.glb`), X3D (`.x3d`) and USDZ (`.usdz`). `api.FORMATS` is `("usd_folder", "gltf", "x3d", "usdz")`; splats is the planned fifth and is not written. With all four toggles on, the fixture gives GO and Export writes all four on hython 22.0.400, .492 and .466.
 
