@@ -479,7 +479,7 @@ class Contracts(TempCase):
 
     def test_unknown_format_is_refused(self):
         with self.assertRaises(ValueError):
-            api.export(Usd.Stage.Open(str(CLEAN)), ["usdz"], self.tmp / "out")  # not written yet
+            api.export(Usd.Stage.Open(str(CLEAN)), ["splats"], self.tmp / "out")  # not written yet
         self.assertFalse((self.tmp / "out").exists())
 
     def test_validate_reports_instead_of_exiting(self):

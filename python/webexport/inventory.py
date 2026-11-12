@@ -19,7 +19,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Literal
 
-from pxr import Sdf, Tf, Usd, UsdGeom, UsdLux, UsdShade, UsdVol
+from pxr import Ar, Sdf, Tf, Usd, UsdGeom, UsdLux, UsdShade, UsdVol
 
 __all__ = [
     "Inventory", "MeshFact", "InstancerFact", "MaterialFact", "LightFact", "CameraFact",
@@ -521,7 +521,12 @@ def gather(stage: Usd.Stage, track_types: Iterable[str] = ()) -> StageFacts:
     for layer in stage.GetUsedLayers():
         if layer.anonymous:
             continue
-        ext = os.path.splitext(layer.identifier.split(":SDF_FORMAT_ARGS:")[0])[1].lower()
+        identifier = layer.identifier.split(":SDF_FORMAT_ARGS:")[0]
+        # A layer inside a package (.usdz[inner.usda]) takes the inner layer's extension; the
+        # outer package's ".usdz" is not the format the browser has to read.
+        if Ar.IsPackageRelativePath(identifier):
+            identifier = Ar.SplitPackageRelativePathOuter(identifier)[1]
+        ext = os.path.splitext(identifier)[1].lower()
         layers.setdefault(ext, []).append(layer.identifier)
         if root_dir and layer.realPath and not inside(layer.realPath, root_dir):
             try:  # shown as written on disk (realpath, not normcase, which lowercases on Windows)
