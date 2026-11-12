@@ -1,0 +1,45 @@
+{
+ "plan": "Wave 6, from the actual state at v0.6.1. CORRECTION to the earlier open list: glTF (d078c6a) and X3D (3086159) both bake xform animation now, and the USDZ toggle has been live since 0.6.0, proven on 22.0.400/.492/.466. The items below are what is genuinely open.",
+ "environment": {
+  "cloud": "An AI coding agent in a git worktree with py -3.12 (usd-core 26.5), Node 24, Playwright, network; no Houdini, no hython, no prefs writes, no GitHub account actions.",
+  "desk": "Joe's Windows workstation: Houdini 22.0.x with hython, OneDrive prefs, gh CLI, a GUI session for Qt. Plain python 3.14 is broken; py -3.12 and hython work.",
+  "joe": "Joe Ibrahim, owner of taste, licensing, releases and the Synapse repo."
+ },
+ "tasks": [
+  {
+   "id": "A1",
+   "title": "Finish animation honesty: scale-only X3D and non-xform attributes",
+   "detail": "X3D has no ScaleInterpolator, so scale-only motion stays at the start pose; and neither writer detects animated attributes that are not transforms (points, shader inputs, visibility). Report the first and detect the second, so the report says exactly what is baked."
+  },
+  {
+   "id": "A2",
+   "title": "Record the verified limits in blueprint section 6",
+   "detail": "Mark Quick Look as untested, note the three-probe animation detection limit, and record what the browser suites now prove."
+  },
+  {
+   "id": "P1",
+   "title": "Build the Qt report panel",
+   "detail": "A panel rendering LossReport side by side per format, using a copy of Synapse's design system at commit 36148779. Needs a GUI session."
+  },
+  {
+   "id": "S1",
+   "title": "Wire the Synapse tool",
+   "detail": "An optional tool in the Synapse repo calling webexport.api.export. The guardrail forbids editing that repo from here."
+  },
+  {
+   "id": "J1",
+   "title": "Upload the social preview image",
+   "detail": "docs/assets/social-preview.png in Settings; no supported API."
+  },
+  {
+   "id": "J2",
+   "title": "Check the Preview button in the GUI",
+   "detail": "Console flash, UI stall, and whether the server outlives Houdini."
+  },
+  {
+   "id": "E1",
+   "title": "Repair the broken python 3.14",
+   "detail": "Reinstall or repair the interpreter that lost python314.dll; a machine-level change."
+  }
+ ]
+}
