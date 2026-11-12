@@ -3,6 +3,6 @@
   <!-- Built on a 16-unit grid, so it is pixel-exact at 16 px. For paper #FAF8F4. -->
   <!-- The stage, lit: a sun on the horizon. The one vermilion element. -->
   <path d="M1 8a7 7 0 0 1 14 0z" fill="#C8321A"/>
-  <!-- three.js drawing it: three scanlines that complete the circle. 1 px hairlines at every size. -->
-  <path d="M1.1626 9.5H14.8374M1.9378 11.5H14.0622M3.6699 13.5H12.3301" fill="none" stroke="#2E2B28" stroke-width="1" vector-effect="non-scaling-stroke" shape-rendering="crispEdges"/>
+  <!-- three.js drawing it: four scanlines, one per format, that complete the circle. 1 px hairlines at every size. -->
+  <path d="M1.0179 8.5H14.9821M1.4617 10.5H14.5383M2.6381 12.5H13.3619M5.4019 14.5H10.5981" fill="none" stroke="#2E2B28" stroke-width="1" vector-effect="non-scaling-stroke" shape-rendering="crispEdges"/>
 </svg>
