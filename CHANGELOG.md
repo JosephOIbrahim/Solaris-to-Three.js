@@ -1,13 +1,16 @@
+# Changelog
+
+All notable changes are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
+
 ## [Unreleased]
+
+## [0.6.4] - 2026-11-12
+
+This release covers the HDA format assertion.
 
 ### Changed
 
 - `tests/hou/test_hda.py` now fails when a ticked format writes no file, when the badge errors on a non-blocking export, or when a FIX FIRST export writes anything. Before, a broken or disabled writer passed as long as the remaining formats exported. Proven on 22.0.400, .492 and .466: four ticked, four written.
-
-
-# Changelog
-
-All notable changes are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [0.6.3] - 2026-11-12
 
@@ -155,7 +158,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.3...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.4...HEAD
+[0.6.4]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.4
 [0.6.3]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.3
 [0.6.2]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.2
 [0.6.1]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.1
