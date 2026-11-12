@@ -118,6 +118,29 @@ def time_range_stage(folder: Path) -> Path:
     return folder / "still.usda"
 
 
+def build_instanced_stage(folder: Path):
+    """Two instanceable references to one box. stage.Traverse() sees none of the geometry."""
+    asset = Usd.Stage.CreateNew(str(folder / "asset.usda"))
+    root = UsdGeom.Xform.Define(asset, "/asset")   # a component root, with the geometry beneath it
+    asset.SetDefaultPrim(root.GetPrim())
+    mesh = UsdGeom.Mesh.Define(asset, "/asset/mesh")
+    mesh.CreatePointsAttr(Vt.Vec3fArray([Gf.Vec3f(0, 0, 0), Gf.Vec3f(1, 0, 0),
+                                         Gf.Vec3f(1, 0, 1), Gf.Vec3f(0, 0, 1)]))
+    mesh.CreateFaceVertexCountsAttr([4])
+    mesh.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    asset.GetRootLayer().Save()
+
+    stage = Usd.Stage.CreateNew(str(folder / "shot.usda"))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/root").GetPrim())
+    for name in ("one", "two"):
+        prim = stage.DefinePrim("/root/" + name, "Xform")
+        prim.GetReferences().AddReference("./asset.usda")
+        prim.SetInstanceable(True)
+    stage.GetRootLayer().Save()
+    return stage
+
+
 class GltfExportTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -245,6 +268,16 @@ class GltfExportTest(unittest.TestCase):
             ok, problems = validate_glb(broken)
             self.assertFalse(ok, "a mismatched attribute count must be caught")
             self.assertTrue(any("parallel" in p for p in problems), problems)
+
+    def test_geometry_inside_instanceable_references_is_written(self):
+        """B2: stage.Traverse() skips instance proxies; the writers must not."""
+        with tempfile.TemporaryDirectory() as folder:
+            stage = build_instanced_stage(Path(folder))
+            result = api.export(stage, ["gltf"], self.out)[0]
+            self.assertTrue(result.validated, result.report.render_text())
+            doc = read_glb(result.entry_file)
+            self.assertGreaterEqual(len(doc["meshes"]), 2,
+                                    "geometry inside instanceable references must be written")
 
     def test_an_animated_stage_exports_time_samples(self):
         """The animated fixture turns a full circle over 121 frames; every frame must be in the file."""

@@ -481,16 +481,16 @@ class GltfWriter:
         self.inv = inv
         glb = _Glb()
         glb.doc["scenes"][0]["extras"] = _settings_extras(settings)
-        for prim in stage.Traverse():
+        for prim in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies()):
             if prim.IsA(UsdGeom.Mesh) and UsdGeom.Imageable(prim).ComputePurpose() in ("default", "render"):
                 self._mesh(glb, prim)
             elif prim.IsA(UsdGeom.PointInstancer):
                 self._instancer(glb, prim)
-        for prim in stage.Traverse():
+        for prim in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies()):
             if prim.IsA(UsdGeom.Camera):
                 self._camera(glb, prim)
                 break
-        for prim in stage.Traverse():
+        for prim in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies()):
             if prim.GetTypeName().endswith("Light"):
                 self._light(glb, prim)
 

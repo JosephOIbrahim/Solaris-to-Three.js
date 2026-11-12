@@ -152,6 +152,29 @@ def official_schema():
         return None, f"needs network ({type(exc).__name__})"
 
 
+def build_instanced_stage(folder: Path):
+    """Two instanceable references to one box. stage.Traverse() sees none of the geometry."""
+    asset = Usd.Stage.CreateNew(str(folder / "asset.usda"))
+    root = UsdGeom.Xform.Define(asset, "/asset")   # a component root, with the geometry beneath it
+    asset.SetDefaultPrim(root.GetPrim())
+    mesh = UsdGeom.Mesh.Define(asset, "/asset/mesh")
+    mesh.CreatePointsAttr(Vt.Vec3fArray([Gf.Vec3f(0, 0, 0), Gf.Vec3f(1, 0, 0),
+                                         Gf.Vec3f(1, 0, 1), Gf.Vec3f(0, 0, 1)]))
+    mesh.CreateFaceVertexCountsAttr([4])
+    mesh.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    asset.GetRootLayer().Save()
+
+    stage = Usd.Stage.CreateNew(str(folder / "shot.usda"))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/root").GetPrim())
+    for name in ("one", "two"):
+        prim = stage.DefinePrim("/root/" + name, "Xform")
+        prim.GetReferences().AddReference("./asset.usda")
+        prim.SetInstanceable(True)
+    stage.GetRootLayer().Save()
+    return stage
+
+
 class X3dExportTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -292,6 +315,16 @@ class X3dExportTest(unittest.TestCase):
         result = self.export()[0]
         document = etree.parse(str(result.entry_file))
         self.assertTrue(schema.validate(document), [e.message for e in schema.error_log][:5])
+
+    def test_instanceable_references_produce_a_nonempty_scene(self):
+        """B2 on the X3D side: the Scene must not be empty, and must not raise."""
+        with tempfile.TemporaryDirectory() as folder:
+            stage = build_instanced_stage(Path(folder))
+            result = api.export(stage, ["x3d"], self.out)[0]
+            self.assertTrue(result.validated, result.report.render_text())
+            self.assertTrue(result.files)
+            root = ET.parse(str(result.entry_file)).getroot()
+            self.assertTrue(list(root.iter("IndexedFaceSet")), "instanced geometry must appear")
 
     def test_the_profile_reports_what_x3d_cannot_carry(self):
         report = api.check(Usd.Stage.Open(str(FIXTURE)), ["x3d"])[0]

@@ -261,7 +261,7 @@ class X3dWriter:
         self._lights(scene, stage)
 
         material_sets = [v for v in inv.variant_sets if v.kind == "material"]
-        meshes = [p for p in stage.Traverse()
+        meshes = [p for p in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies())
                   if p.IsA(UsdGeom.Mesh) and UsdGeom.Imageable(p).ComputePurpose() in ("default", "render")]
         if material_sets:
             self._variant_switch(scene, stage, meshes, material_sets)
@@ -378,7 +378,7 @@ class X3dWriter:
                 vset.SetVariantSelection(selected)
 
     def _instancers(self, scene, stage):
-        for prim in stage.Traverse():
+        for prim in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies()):
             if not prim.IsA(UsdGeom.PointInstancer):
                 continue
             instancer = UsdGeom.PointInstancer(prim)
@@ -441,7 +441,7 @@ class X3dWriter:
                 ET.SubElement(transform, "Shape", {"USE": proto_name})
 
     def _viewpoint(self, scene, stage):
-        for prim in stage.Traverse():
+        for prim in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies()):
             if not prim.IsA(UsdGeom.Camera):
                 continue
             camera = UsdGeom.Camera(prim)
@@ -465,7 +465,7 @@ class X3dWriter:
             return
 
     def _lights(self, scene, stage):
-        for prim in stage.Traverse():
+        for prim in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies()):
             kind = prim.GetTypeName()
             if kind not in PUNCTUAL:
                 continue
