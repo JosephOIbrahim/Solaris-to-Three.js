@@ -63,6 +63,10 @@ def main():
     problems = checks(tag, head)
     if not notes:
         problems.append(f"CHANGELOG.md has no notes under '## [{version}]'")
+    elif not any(line.startswith("- ") for line in notes.splitlines()):
+        # a rolled section that only carries a sentence means the bullets went somewhere else
+        problems.append(f"the notes under '## [{version}]' have no bullet entries: "
+                        "the changelog changes were probably written into an older release section")
 
     print(f"RELEASE  {tag}  at {head[:7]}  ({'pre-release' if prerelease else 'release'})")
     for p in problems:

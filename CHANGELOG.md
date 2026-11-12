@@ -4,6 +4,19 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-12
+
+This release covers the USDZ toggle and the assess-all-first fix.
+
+### Added
+
+- The node writes the fourth format: the **USDZ** toggle is live and on by default, and Export writes `hero.usda`, `hero.glb`, `hero.x3d` and `hero.usdz` plus their assets into one folder, on hython 22.0.400, .492 and .466.
+
+### Fixed
+
+- USDZ no longer reports `unsaved_layer` when it runs after another format. `api.export` now builds every format's loss report before any writer runs, so each report describes the stage as it arrived. The HDA test reads the node's verdict parm rather than the first verdict in the text, which had hidden a later format's FIX FIRST.
+
+
 ## [0.5.0] - 2026-11-12
 
 This release covers X3D animation and USDZ. All four formats now write from one node.
@@ -51,8 +64,6 @@ This release covers two new formats. glTF and X3D join the USD folder, and the W
 - glTF bakes xform animation: a moving node's local-to-world is sampled at every timecode of the stage's range and written as glTF `animations` with one LINEAR sampler per channel (translation, rotation as quaternions, scale), times in seconds and the required accessor min/max. Geometry now sits in prim space with the transform on its node, so a node can move. `fixtures/stage-animated/` holds a cube that turns a full circle over 121 frames, built by `tools/make_animated_stage.py`, and the glTF test checks the channels and the 121-sample accessors. The profile reports animation as a note rather than a loss.
 
 
-- The node writes the fourth format: the **USDZ** toggle is live and on by default, and Export writes `hero.usda`, `hero.glb`, `hero.x3d` and `hero.usdz` plus their assets into one folder, on hython 22.0.400, .492 and .466.
-- Fixed: USDZ no longer reports `unsaved_layer` when it runs after another format. `api.export` now builds every format's loss report before any writer runs, so each report describes the stage as it arrived. The HDA test reads the node's verdict parm rather than the first verdict in the text, which had hidden a later format's FIX FIRST.
 
 ### Fixed
 
@@ -116,7 +127,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.0
 [0.5.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.5.0
 [0.4.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.4.0
 [0.2.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.2.0
