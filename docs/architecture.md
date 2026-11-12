@@ -8,33 +8,45 @@ This page explains how a Solaris stage ends up as pixels in a browser tab, from 
 
 Needle compiled OpenUSD 26.05 to WebAssembly and wrote a render delegate that outputs three.js objects. So the browser runs the same composition engine Houdini does, and three.js sits where Karma or Storm would. Payloads, variants, purpose and instancing are resolved by real USD, not by a converter that guesses.
 
-## The pipeline
+## The browser side
+
+The export side ends at one folder under `stages/`. From there the browser side starts: the server, the WebAssembly runtime, and the three players.
 
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {"fontFamily": "Archivo, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Helvetica, Arial, Noto Sans, Liberation Sans, DejaVu Sans", "fontSize": "16px", "primaryColor": "#FAF8F4", "primaryTextColor": "#2E2B28", "primaryBorderColor": "#927D70", "secondaryColor": "#F1ECE4", "tertiaryColor": "#F1ECE4", "lineColor": "#927D70", "arrowheadColor": "#927D70", "textColor": "#83776D", "nodeTextColor": "#2E2B28", "clusterBkg": "#F1ECE4", "clusterBorder": "#927D70", "titleColor": "#2E2B28", "edgeLabelBackground": "#FAF8F4", "noteBkgColor": "#F1ECE4", "noteTextColor": "#2E2B28", "noteBorderColor": "#927D70"}}}%%
 flowchart TB
-  subgraph desk["Houdini, at your desk"]
-    lop["Solaris LOP network"]:::accent --> rop["USD ROP: one folder, relative paths"]
+  folder[("export under stages/name/")]:::umber
+  subgraph trust["Trust boundary: one page origin, four mounts, no traversal"]
+    server["server/serve.mjs<br/>static files, COOP same-origin, COEP require-corp"]:::accent
+    subgraph tab["Browser tab, cross-origin isolated"]
+      viewer["viewer/index.html<br/>the USD player"]:::moss
+      gltf["viewer/players/gltf.html<br/>three GLTFLoader"]:::moss
+      x3d["viewer/players/x3d.html<br/>X_ITE 16.7.1, MIT"]:::moss
+      wasm["OpenUSD 26.05 in WebAssembly<br/>composes the stage"]:::stone
+      hydra["Hydra"]:::stone
+      delegate["Needle three.js render delegate"]:::stone
+      mtlx["MaterialX 1.8.0<br/>pinned by package.json overrides"]:::ochre
+      scene["three.js r187 scene<br/>WebGL"]:::stone
+      bridge["lighting bridge<br/>dome to environment, USD light units to candela"]:::stone
+      gltfscene["three.js scene<br/>from GLTFLoader"]:::stone
+      xscene["X_ITE canvas<br/>no WebAssembly"]:::stone
+    end
   end
-  rop --> folder[("export folder: root layer, payloads, textures")]:::umber
-  folder --> census{"tools/web_census.py"}:::ochre
-  census -->|FIX FIRST| outside["a file outside the export folder (a ../ path) or another blocker: fix it and re-export"]:::clay
-  outside -.-> rop
-  census -->|"GO, or GO, WITH NOTES"| stages["copy the folder to stages/name/"]:::moss
-  stages --> server
-  subgraph server["server/serve.mjs, port 5180"]
-    headers["COOP same-origin and COEP require-corp on every response"]
-  end
-  server --> wasm
-  subgraph tab["Browser tab, cross-origin isolated"]
-    wasm["OpenUSD 26.05 in WebAssembly: composes the stage"]:::stone --> hydra["Hydra"]
-    hydra --> delegate["Needle three.js render delegate"]
-    delegate --> mtlx["MaterialX 1.8.0: shader generation"]
-    delegate --> scene["three.js r187 scene"]
-    mtlx --> scene
-    bridge["Lighting bridge: reads DomeLight_1, dome to environment, oriented by its transform and poleAxis, USD lights to candela"]:::stone --> scene
-    scene --> webgl["WebGL"]
-  end
+  cdn["jsDelivr<br/>x_ite 16.7.1, pinned, MIT"]:::umber
+  folder --> server
+  server --> viewer
+  server --> gltf
+  server --> x3d
+  viewer --> wasm
+  wasm --> hydra
+  hydra --> delegate
+  delegate --> mtlx
+  delegate --> scene
+  mtlx --> scene
+  bridge --> scene
+  gltf --> gltfscene
+  x3d --> xscene
+  cdn -.->|"one third-party script"| x3d
   classDef stone fill:#DEE4E5,stroke:#7096A7,stroke-width:1.5px,color:#2E2B28
   classDef moss fill:#E5E8DC,stroke:#91A87B,stroke-width:1.5px,color:#2E2B28
   classDef ochre fill:#EBE2D2,stroke:#AE8B4C,stroke-width:1.5px,color:#2E2B28
@@ -45,7 +57,7 @@ flowchart TB
 
 ## The layers, one at a time
 
-**The export.** The USD ROP writes the root layer, every payload and every texture into one folder with relative paths. The browser can only fetch what sits under the server's root, so an absolute `D:/textures/wood.png` is unreachable by design. `tools/web_census.py` checks this before you open the page; see [census.md](census.md).
+**The export.** The Web Export LOP, or a USD ROP on its own, writes the root layer, every payload and every texture into one folder with relative paths. The browser can only fetch what sits under the server's root, so an absolute `D:/textures/wood.png` is unreachable by design. `tools/web_census.py` checks this before you open the page; see [census.md](census.md).
 
 **The server.** `server/serve.mjs` is a static file server with one job beyond serving files: it sends `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` on every response. Those two headers make the page *cross-origin isolated*, and only an isolated page may use `SharedArrayBuffer`. The OpenUSD build is threaded, and its threads share memory through `SharedArrayBuffer`, so without the headers the runtime refuses to start. Any host you deploy to must send the same two headers. The server also maps four roots: `/` to `viewer/`, `/vendor/` to `node_modules/`, `/fixtures/` to the test stages and `/stages/` to your exports. It rejects paths that escape those roots and sends `Cache-Control: no-store` so a re-export is never hidden by a stale cache.
 
@@ -59,12 +71,14 @@ flowchart TB
 
 **The camera.** If the stage has a USD camera, the viewer looks through it and widens the vertical field of view on narrow screens so the authored frame stays fully visible, phone portrait included. The orbit button hands control to `OrbitControls`.
 
-## Two routes, on purpose
+## Three players, and two routes in the main one
 
-The viewer carries a second route for comparison. The **Hydra route** is the main one described above. The **JS route** loads a flattened `.usdz` with three.js's own `USDLoader`, which is MIT-licensed and needs no WebAssembly, but it ignores `purpose`, builds only UsdPreviewSurface materials and does no composition of its own. Keeping both on one page shows exactly what the heavy runtime buys you.
+The main viewer carries two routes on purpose. The Hydra route is the one described above. The JS route loads a flattened `.usdz` with three.js's own `USDLoader`, which is MIT-licensed and needs no WebAssembly, but it ignores `purpose`, builds only UsdPreviewSurface materials and does no composition of its own. Keeping both on one page shows exactly what the heavy runtime buys you.
+
+Two standalone players sit beside the viewer. `viewer/players/gltf.html` draws the exported `.glb` with three's `GLTFLoader`, and `viewer/players/x3d.html` draws the exported `.x3d` with X_ITE 16.7.1. Neither needs the Needle runtime, and each loads what the exporter produces.
 
 ## What is verified, and what is not
 
-Verified in headless Chromium with software rendering, on the synthetic fixture stage: payloads over HTTP, live variant switching, purpose toggling, `PointInstancer`, OpenSubdiv refinement, the USD camera with phone framing, MaterialX `standard_surface` and OpenPBR, UsdPreviewSurface and time samples. `npm run test:browser` repeats those checks.
+Verified in headless Chromium with software rendering, on the synthetic fixture stage: payloads over HTTP, live variant switching, purpose toggling, `PointInstancer`, OpenSubdiv refinement, the USD camera with phone framing, MaterialX `standard_surface` and OpenPBR, UsdPreviewSurface and time samples. Both standalone players load the exporter's own `.glb` and `.x3d` with zero errors. `npm run test:browser` repeats those checks.
 
 Verified since then: Joe's RTX 4090 under Windows (T02, see [CHANGELOG](../CHANGELOG.md) 0.1.2), and live calls to Jev (2026-11-11, through the build router and `tools/decide.py`). Not yet verified: a real Karma export, task T03 in [`plan/tasks.json`](../plan/tasks.json).
