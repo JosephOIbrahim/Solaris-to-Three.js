@@ -15,7 +15,7 @@
     "test:py": "python -m unittest discover -s tests -v",
     "test:browser": "node tests/browser/smoke.mjs",
     "route": "python tools/build_router.py plan/tasks.json --check plan/tasks.expected.json",
-    "fixtures": "python tools/make_stage.py && python tools/make_dirty_stage.py && python tools/make_escape_stage.py && python tools/make_websettings_stage.py && python tools/make_gltf_fixture.py"
+    "fixtures": "python tools/make_stage.py && python tools/make_dirty_stage.py && python tools/make_escape_stage.py && python tools/make_websettings_stage.py && python tools/make_gltf_fixture.py && python tools/make_x3d_fixture.py"
   },
   "dependencies": {
     "@needle-tools/usd": "1.1.2",

@@ -34,6 +34,8 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 - X3D export (`python/webexport/profiles/x3d.py`, `writers/x3d.py`): `api.export(stage, ["x3d"])` writes X3D 4.0 XML with `Transform`/`Shape`/`IndexedFaceSet`, `PhysicalMaterial`, a `Switch` per material variant set (one group per look), `DEF`/`USE` for PointInstancers, a `Viewpoint` and `PointLight`/`DirectionalLight`. The file validates against the official X3D 4.0 schema, and the test checks that with lxml when the schema is reachable. The profile reports what X3D cannot carry: subdivision as its cage, material variants duplicated per look, area and dome lights dropped, and images that are not PNG or JPEG blocking the export.
 
+- The X3D player (`viewer/players/x3d.html`): X_ITE 16.7.1, MIT, pinned and loaded from jsDelivr, on the exporter's own `fixtures/stage-flat/hero.x3d`. X_ITE exposes no node counts, so the page parses the file it renders and reports shapes, instances and switches. `tools/make_x3d_fixture.py` rebuilds the fixture, `serve.mjs` serves `.x3d` as `model/x3d+xml`, and the browser test loads it with zero errors. All 18 browser checks pass.
+
 ### Fixed
 
 - When `/WebSettings` has no `web:title`, the viewer now titles the page and the HUD with the stage file name, as blueprint section 4.5 says, and records where the title came from. A browser check covers it.

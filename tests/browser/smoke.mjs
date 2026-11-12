@@ -104,6 +104,17 @@ await gltfPage.waitForTimeout(800);
 const gltf = await gltfPage.evaluate(() => ({ ...window.__gltf }));
 await shot(gltfPage, "08-gltf-player");
 await gltfPage.close();
+
+// The X3D player: X_ITE (MIT) renders the exported fixture; the page also counts the file it
+// renders, because X_ITE exposes no node statistics.
+const x3dPage = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+x3dPage.on("pageerror", (e) => logs.push(`[pageerror] ${e.message}`.slice(0, 400)));
+await x3dPage.goto(`${ORIGIN}/players/x3d.html?model=/fixtures/stage-flat/hero.x3d`);
+await x3dPage.waitForFunction(() => window.__x3d?.ready, null, { timeout: 120000 });
+await x3dPage.waitForTimeout(2000);
+const x3d = await x3dPage.evaluate(() => ({ ...window.__x3d }));
+await shot(x3dPage, "09-x3d-player");
+await x3dPage.close();
 await browser.close();
 
 await writeFile(`${OUT}report.json`, JSON.stringify({ report, logs }, null, 2));
@@ -131,6 +142,10 @@ const checks = [
     `${gltf.triangles} triangles, ${gltf.errors.length} errors)`,
     gltf.ready === true && gltf.errors.length === 0 && gltf.meshes >= 8 && gltf.instanced === 36
     && gltf.extensions.includes("EXT_mesh_gpu_instancing")],
+  [`X3D player loads the exported fixture (${x3d.shapes} shapes, ${x3d.uses} instances, ` +
+    `${x3d.switches} switches, ${x3d.errors.length} errors)`,
+    x3d.ready === true && x3d.errors.length === 0 && x3d.uses === 36 && x3d.switches >= 2
+    && x3d.viewpoints === 1 && x3d.loaded === true],
   [`/WebSettings title applied (document.title = "${ws.title}")`, ws.title === WS_TITLE && ws.report?.applied?.titleSource === "web:title"],
   [`/WebSettings showHud = false hides #hud (display ${ws.hudDisplay})`, ws.hudDisplay === "none"],
   ["/WebSettings stage loaded clean, dome intact", ws.errors.length === 0 && ws.env],
