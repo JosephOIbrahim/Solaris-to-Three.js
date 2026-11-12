@@ -244,6 +244,27 @@ class ChangelogClaims(unittest.TestCase):
                 "'## [%s]'. Releases descend, newest first." % (newer, older),
             )
 
+    def test_headings_are_followed_by_a_blank_line(self):
+        lines = read(CHANGELOG).splitlines()
+        problems = []
+        for i, line in enumerate(lines):
+            if not (line.startswith("## [") or line.startswith("### ")):
+                continue
+            following = lines[i + 1] if i + 1 < len(lines) else None
+            if following is None:
+                problems.append("line %d: '%s' is the last line, with nothing after it"
+                                % (i + 1, line[:48]))
+            elif following.strip() != "":
+                problems.append("line %d: '%s' is followed directly by '%s'"
+                                % (i + 1, line[:48], following[:48]))
+        self.assertEqual(
+            problems,
+            [],
+            "CHANGELOG.md needs a blank line under every heading:\n  %s\n"
+            "Without it the section renders tight and the next block stops reading as its own."
+            % "\n  ".join(problems),
+        )
+
     def test_no_section_repeats_a_bullet_from_an_older_section(self):
         sections = changelog_sections(read(CHANGELOG))
         problems = []

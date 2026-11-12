@@ -4,6 +4,10 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+### Changed
+
+- `tests/test_claims.py` gained a third structural check: every `## [` and `### ` heading must be followed by a blank line. Verified against three malformed changelogs and one well-formed one, which passes.
+
 ## [0.6.6] - 2026-11-12
 
 This release covers the v0.6.5 handoff update.
