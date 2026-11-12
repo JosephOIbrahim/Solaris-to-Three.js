@@ -38,6 +38,8 @@ This release covers two new formats. glTF and X3D join the USD folder, and the W
 - `docs/web-export.md`, the operator's card for the node: install, the three buttons, reading the report, the batch path and the traps.
 - Every validation problem now travels as a report item, so `validated=False` always carries its reason. A report refuses a verdict that contradicts its items and recomputes it when read back, and a report is bound to the stage it was built from.
 
+- glTF bakes xform animation: a moving node's local-to-world is sampled at every timecode of the stage's range and written as glTF `animations` with one LINEAR sampler per channel (translation, rotation as quaternions, scale), times in seconds and the required accessor min/max. Geometry now sits in prim space with the transform on its node, so a node can move. `fixtures/stage-animated/` holds a cube that turns a full circle over 121 frames, built by `tools/make_animated_stage.py`, and the glTF test checks the channels and the 121-sample accessors. The profile reports animation as a note rather than a loss.
+
 ### Fixed
 
 - When `/WebSettings` has no `web:title`, the viewer now titles the page and the HUD with the stage file name, as blueprint section 4.5 says, and records where the title came from. A browser check covers it.

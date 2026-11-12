@@ -31,7 +31,7 @@ from .base import ExportResult
 
 FORMAT = "gltf"
 COMPONENT = {"float": 5126, "uint": 5125}
-ARITY = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "MAT4": 16}
+ARITY = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
 IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 
 
@@ -45,6 +45,7 @@ class _Glb:
             "extensionsUsed": [], "scene": 0, "scenes": [{"nodes": [], "extras": {}}],
             "nodes": [], "meshes": [], "materials": [], "cameras": [], "images": [],
             "textures": [], "samplers": [], "accessors": [], "bufferViews": [], "buffers": [],
+            "animations": [],
         }
         self._materials: dict[str, int] = {}
         self._images: dict[str, int] = {}
@@ -69,8 +70,11 @@ class _Glb:
         accessor = {"bufferView": self.view(data, target), "componentType": COMPONENT[kind],
                     "count": len(values), "type": gtype}
         if minmax and values:
-            accessor["min"] = [min(v[i] for v in values) for i in range(ARITY[gtype])]
-            accessor["max"] = [max(v[i] for v in values) for i in range(ARITY[gtype])]
+            if gtype == "SCALAR":  # animation times: plain floats, min/max are required by the spec
+                accessor["min"], accessor["max"] = [min(values)], [max(values)]
+            else:
+                accessor["min"] = [min(v[i] for v in values) for i in range(ARITY[gtype])]
+                accessor["max"] = [max(v[i] for v in values) for i in range(ARITY[gtype])]
         self.doc["accessors"].append(accessor)
         return len(self.doc["accessors"]) - 1
 
@@ -238,6 +242,51 @@ def _variant_mappings(glb: _Glb, prim, inv) -> list[dict]:
     return mappings
 
 
+def stage_time(prim) -> float:
+    """The time a static node is written at: the stage start, else 1."""
+    stage = prim.GetStage()
+    return float(stage.GetStartTimeCode() if stage.GetStartTimeCode() else 1.0)
+
+
+def _trs(prim, time: float) -> dict:
+    """Translation, rotation (x, y, z, w) and scale from a prim's local-to-world at one time."""
+    matrix = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode(time))
+    translation = matrix.ExtractTranslation()
+    scale = [Gf.Vec3d(matrix.GetColumn(i)[0], matrix.GetColumn(i)[1],
+                      matrix.GetColumn(i)[2]).GetLength() for i in range(3)]
+    quat = matrix.ExtractRotationQuat()
+    imag = quat.GetImaginary()
+    return {"translation": [float(translation[0]), float(translation[1]), float(translation[2])],
+            "rotation": [float(imag[0]), float(imag[1]), float(imag[2]), float(quat.GetReal())],
+            "scale": [float(s) if s else 1.0 for s in scale]}
+
+
+def _same(a: dict, b: dict, eps: float = 1e-6) -> bool:
+    return all(abs(x - y) <= eps for key in a for x, y in zip(a[key], b[key]))
+
+
+def _node_fields(trs: dict) -> dict:
+    """Only the channels that are not identity, so a static node stays small."""
+    fields = {}
+    if any(abs(v) > 1e-9 for v in trs["translation"]):
+        fields["translation"] = trs["translation"]
+    if abs(trs["rotation"][3] - 1.0) > 1e-9 or any(abs(v) > 1e-9 for v in trs["rotation"][:3]):
+        fields["rotation"] = trs["rotation"]
+    if any(abs(v - 1.0) > 1e-9 for v in trs["scale"]):
+        fields["scale"] = trs["scale"]
+    return fields
+
+
+def _animated(prim) -> bool:
+    """True when the prim's local-to-world differs across the stage's time range."""
+    stage = prim.GetStage()
+    start, end = stage.GetStartTimeCode(), stage.GetEndTimeCode()
+    if start is None or end is None or end <= start:
+        return False
+    probes = [_trs(prim, start), _trs(prim, (start + end) / 2.0), _trs(prim, end)]
+    return not (_same(probes[0], probes[1]) and _same(probes[1], probes[2]))
+
+
 def _world_points(prim, points):
     xform = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
     return [xform.Transform(Gf.Vec3d(p)) for p in points]
@@ -315,6 +364,25 @@ def validate_glb(path: Path) -> tuple[bool, list[str]]:
     for i, texture in enumerate(doc.get("textures", [])):
         if texture.get("source", 0) >= len(doc.get("images", [])):
             problems.append(f"texture {i} points at a missing image")
+    for a, animation in enumerate(doc.get("animations", [])):
+        for c, channel in enumerate(animation.get("channels", [])):
+            sampler = animation["samplers"][channel["sampler"]] if channel.get("sampler", 99) < len(animation.get("samplers", [])) else None
+            if sampler is None:
+                problems.append(f"animation {a} channel {c} points at a missing sampler")
+                continue
+            if sampler["input"] >= len(doc.get("accessors", [])):
+                problems.append(f"animation {a} channel {c} has a missing input accessor")
+            if sampler["output"] >= len(doc.get("accessors", [])):
+                problems.append(f"animation {a} channel {c} has a missing output accessor")
+            if channel.get("target", {}).get("node", 0) >= len(doc.get("nodes", [])):
+                problems.append(f"animation {a} channel {c} targets a missing node")
+        for s, sampler in enumerate(animation.get("samplers", [])):
+            inputs = doc["accessors"][sampler["input"]]
+            outputs = doc["accessors"][sampler["output"]]
+            if inputs["count"] != outputs["count"]:
+                problems.append(f"animation {a} sampler {s}: {inputs['count']} times, {outputs['count']} values")
+            if "min" not in inputs or "max" not in inputs:
+                problems.append(f"animation {a} sampler {s}: input accessor has no min/max")
     declared = doc.get("extensions", {}).get("KHR_materials_variants", {}).get("variants", [])
     if "KHR_materials_variants" in doc.get("extensionsUsed", []):
         if not declared:
@@ -398,10 +466,10 @@ class GltfWriter:
         if not counts or not indices or not points:
             return
         tris = triangulate(counts, indices)
-        world = _world_points(prim, points)
-        positions = [[p[0], p[1], p[2]] for p in world]
+        local = [Gf.Vec3d(p[0], p[1], p[2]) for p in points]
+        positions = [[p[0], p[1], p[2]] for p in local]
         attributes = {"POSITION": glb.accessor(positions, "float", "VEC3", minmax=True),
-                      "NORMAL": glb.accessor(_normals(world, tris), "float", "VEC3")}
+                      "NORMAL": glb.accessor(_normals(local, tris), "float", "VEC3")}
         uv = _uvs(prim, tris, len(points))
         if uv:
             attributes["TEXCOORD_0"] = glb.accessor(uv, "float", "VEC2")
@@ -413,7 +481,9 @@ class GltfWriter:
         if mappings:
             primitive["extensions"] = {"KHR_materials_variants": {"mappings": mappings}}
         glb.doc["meshes"].append({"name": prim.GetName(), "primitives": [primitive]})
-        glb.node(name=str(prim.GetPath()), mesh=len(glb.doc["meshes"]) - 1)
+        node = glb.node(name=str(prim.GetPath()), mesh=len(glb.doc["meshes"]) - 1,
+                        **_node_fields(_trs(prim, stage_time(prim))))
+        self._animate(glb, prim, node)
 
     def _instancer(self, glb: _Glb, prim) -> None:
         instancer = UsdGeom.PointInstancer(prim)
@@ -436,13 +506,51 @@ class GltfWriter:
         glb.doc["meshes"].append({"name": proto.GetName(), "primitives": [{
             "attributes": attributes, "indices": glb.accessor(tris, "uint", "SCALAR", target=34963),
             "mode": 4, "material": glb.material(bound, proto.GetName())}]})
-        xform = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
-        world = [[xform.Transform(Gf.Vec3d(p))[i] for i in range(3)] for p in positions]
+        local = [[float(p[0]), float(p[1]), float(p[2])] for p in positions]
         if "EXT_mesh_gpu_instancing" not in glb.doc["extensionsUsed"]:
             glb.doc["extensionsUsed"].append("EXT_mesh_gpu_instancing")
-        glb.node(name=str(prim.GetPath()), mesh=len(glb.doc["meshes"]) - 1,
-                 extensions={"EXT_mesh_gpu_instancing": {
-                     "attributes": {"TRANSLATION": glb.accessor(world, "float", "VEC3")}}})
+        node = glb.node(name=str(prim.GetPath()), mesh=len(glb.doc["meshes"]) - 1,
+                        **_node_fields(_trs(prim, stage_time(prim))),
+                        extensions={"EXT_mesh_gpu_instancing": {
+                            "attributes": {"TRANSLATION": glb.accessor(local, "float", "VEC3")}}})
+        self._animate(glb, prim, node)
+
+    def _animate(self, glb: _Glb, prim, node: int) -> None:
+        """Bake a moving node's local-to-world as glTF animation channels.
+
+        One sampler per channel (translation, rotation, scale), sampled at every timecode in the
+        stage's range, in seconds. Interpolation is LINEAR: the source is a sampled transform,
+        so a linear blend between frames is what USD itself does between samples.
+        """
+        if not _animated(prim):
+            return
+        stage = prim.GetStage()
+        start, end = int(stage.GetStartTimeCode()), int(stage.GetEndTimeCode())
+        fps = stage.GetTimeCodesPerSecond() or stage.GetFramesPerSecond() or 24.0
+        step = max(1, round((end - start + 1) / 600))  # keep a long shot's file bounded
+        frames = list(range(start, end + 1, step))
+        if frames[-1] != end:
+            frames.append(end)
+        samples = [_trs(prim, frame) for frame in frames]
+        times = [(frame - start) / float(fps) for frame in frames]
+
+        animation = glb.doc["animations"][0] if glb.doc["animations"] else None
+        if animation is None:
+            glb.doc["animations"].append({"name": "take", "channels": [], "samplers": []})
+            animation = glb.doc["animations"][0]
+        input_accessor = None
+        for path in ("translation", "rotation", "scale"):
+            values = [sample[path] for sample in samples]
+            if all(abs(v - w) <= 1e-9 for v in values[0] for w in values[0]) and \
+               all(_same({path: values[0]}, {path: v}) for v in values):
+                continue  # this channel never moves
+            if input_accessor is None:
+                input_accessor = glb.accessor(times, "float", "SCALAR", minmax=True)
+            output = glb.accessor(values, "float", "VEC4" if path == "rotation" else "VEC3")
+            animation["samplers"].append({"input": input_accessor, "output": output,
+                                          "interpolation": "LINEAR"})
+            animation["channels"].append({"sampler": len(animation["samplers"]) - 1,
+                                          "target": {"node": node, "path": path}})
 
     def _camera(self, glb: _Glb, prim) -> None:
         camera = UsdGeom.Camera(prim)

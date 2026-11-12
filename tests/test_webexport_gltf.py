@@ -91,7 +91,7 @@ class GltfExportTest(unittest.TestCase):
         for i, accessor in enumerate(doc["accessors"]):
             view = doc["bufferViews"][accessor["bufferView"]]
             width = 4 if accessor["componentType"] in (5125, 5126) else 2
-            arity = {"SCALAR": 1, "VEC2": 2, "VEC3": 3}[accessor["type"]]
+            arity = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}[accessor["type"]]
             self.assertLessEqual(accessor["count"] * arity * width, view["byteLength"],
                                  f"accessor {i} overruns its buffer view")
         for image in doc.get("images", []):
@@ -151,6 +151,33 @@ class GltfExportTest(unittest.TestCase):
         self.assertAlmostEqual(by_name["gold"]["metallicFactor"], 1.0, places=3)
         self.assertAlmostEqual(by_name["chrome"]["metallicFactor"], 1.0, places=3)
         self.assertLess(by_name["chrome"]["roughnessFactor"], by_name["ember"]["roughnessFactor"])
+
+    def test_an_animated_stage_exports_time_samples(self):
+        """The animated fixture turns a full circle over 121 frames; every frame must be in the file."""
+        animated = ROOT / "fixtures" / "stage-animated" / "animated.usda"
+        result = api.export(Usd.Stage.Open(str(animated)), ["gltf"], self.out)[0]
+        self.assertTrue(result.validated, result.report.render_text())
+        doc = read_glb(result.entry_file)
+        self.assertEqual(len(doc["animations"]), 1)
+        animation = doc["animations"][0]
+        paths = {channel["target"]["path"] for channel in animation["channels"]}
+        self.assertIn("rotation", paths)
+        self.assertTrue(animation["samplers"])
+        for sampler in animation["samplers"]:
+            times = doc["accessors"][sampler["input"]]
+            values = doc["accessors"][sampler["output"]]
+            self.assertEqual(times["count"], 121, "one sample per frame of the range")
+            self.assertEqual(values["count"], times["count"])
+            self.assertEqual(times["type"], "SCALAR")
+            self.assertAlmostEqual(times["min"][0], 0.0, places=6)
+            self.assertAlmostEqual(times["max"][0], 5.0, places=3)  # 120 frames at 24 fps
+            self.assertEqual(sampler["interpolation"], "LINEAR")
+            for channel in animation["channels"]:
+                self.assertLess(channel["target"]["node"], len(doc["nodes"]))
+        # the profile reports animation as a note now that xforms are baked
+        features = {item.feature: item for item in result.report.items}
+        if "animation" in features:
+            self.assertEqual(features["animation"].severity, "note")
 
     def test_a_png_samples_into_the_file(self):
         with tempfile.TemporaryDirectory() as folder:

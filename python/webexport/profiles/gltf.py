@@ -83,8 +83,8 @@ class GltfProfile:
         if self.inv.volumes:
             items.append(_item("changes", "volume", self.inv.volumes, "dropped; glTF has no volume prim"))
         if self.inv.time_range and self.inv.time_range[0] != self.inv.time_range[1]:
-            items.append(_item("changes", "animation", [self.inv.root_layer],
-                               "the current time sample only; xform animation is not baked yet"))
+            items.append(_item("note", "animation", [self.inv.root_layer],
+                               "xform animation baked as glTF animations; other animated attributes are not"))
         return items
 
     def _lights(self) -> list[LossItem]:
