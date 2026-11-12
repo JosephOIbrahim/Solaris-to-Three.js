@@ -79,11 +79,13 @@ def parm_group():
     formats.addParmTemplate(hou.ToggleParmTemplate(
         "fmt_gltf", "glTF", default_value=True,
         help="One .glb: meshes, PBR, textures, camera, punctual lights, GPU instancing."))
-    for name, label in (("fmt_x3d", "X3D"), ("fmt_usdz", "USDZ")):
-        t = hou.ToggleParmTemplate(name, label, default_value=False, is_hidden=False,
-                                   help="Not written yet. Reported as unavailable, never silently skipped.")
-        t.setConditional(hou.parmCondType.DisableWhen, "{ 0 }")  # always disabled, visibly
-        formats.addParmTemplate(t)
+    formats.addParmTemplate(hou.ToggleParmTemplate(
+        "fmt_x3d", "X3D", default_value=True,
+        help="One .x3d: X3D 4.0, PhysicalMaterial, Switch for looks, DEF/USE instancing."))
+    t = hou.ToggleParmTemplate("fmt_usdz", "USDZ", default_value=False, is_hidden=False,
+                               help="Not written yet. Reported as unavailable, never silently skipped.")
+    t.setConditional(hou.parmCondType.DisableWhen, "{ 0 }")  # always disabled, visibly
+    formats.addParmTemplate(t)
     ptg.append(formats)
 
     ptg.append(hou.StringParmTemplate("outdir", "Output Folder", 1,

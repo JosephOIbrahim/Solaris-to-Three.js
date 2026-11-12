@@ -36,6 +36,8 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 - The X3D player (`viewer/players/x3d.html`): X_ITE 16.7.1, MIT, pinned and loaded from jsDelivr, on the exporter's own `fixtures/stage-flat/hero.x3d`. X_ITE exposes no node counts, so the page parses the file it renders and reports shapes, instances and switches. `tools/make_x3d_fixture.py` rebuilds the fixture, `serve.mjs` serves `.x3d` as `model/x3d+xml`, and the browser test loads it with zero errors. All 18 browser checks pass.
 
+- The Web Export node writes X3D too: the **X3D** format toggle is live and on by default. With all three formats on, the fixture gives GO on hython 22.0.400, .492 and .466, and Export writes `hero.usda`, `hero.glb`, `hero.x3d` and their assets into one folder.
+
 ### Fixed
 
 - When `/WebSettings` has no `web:title`, the viewer now titles the page and the HUD with the stage file name, as blueprint section 4.5 says, and records where the title came from. A browser check covers it.
