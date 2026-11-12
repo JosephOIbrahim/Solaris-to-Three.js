@@ -6,7 +6,7 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ### Changed
 
-- `plan/wave3-handoff.md` is updated for v0.6.8: six patches since v0.6.2 and what each changed, the 175-test baseline, and the browser dispatch on `d6b3b7a`. The dispatch on `aa60357` is recorded as still running rather than claimed green.
+- `plan/wave3-handoff.md` is updated for v0.6.8: six patches since v0.6.2 and what each changed, the 175-test baseline, and the browser dispatch on `d6b3b7a`. Both dispatches are recorded green, `d6b3b7a` and `aa60357`.
 
 ## [0.6.8] - 2026-11-12
 
