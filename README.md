@@ -78,6 +78,8 @@ Open http://127.0.0.1:5180. The status line reports the three.js version, whethe
 
 04. Open `/?stage=/stages/<name>/<root>.usda` and read the status line. It names every prim whose material fell back to the grey default.
 
+Inside Houdini, the **Web Export** LOP does the folder write and the census report from the end of a Solaris network, with Check, Export and Preview buttons. The card is [docs/web-export.md](docs/web-export.md).
+
 ---
 
 ### <img src="docs/assets/swatch-stone.svg" width="11" height="11" alt=""> How it works
@@ -117,6 +119,8 @@ The full walk-through is in [docs/architecture.md](docs/architecture.md).
 | Tool | What it answers | Needs |
 |:---|:---|:---|
 | `tools/web_census.py` | Can this export go to the web? | `pxr`: hython, or `pip install usd-core` |
+| `houdini/otls/web_export.hda` | The Web Export LOP: the loss report and the USD folder from inside Solaris. See [docs/web-export.md](docs/web-export.md). | Houdini 22 with the package installed |
+| `scripts/build_hda.py` | Rebuilds the Web Export HDA from source. | hython 22.0.400 |
 | `tools/build_router.py` | Which build tasks run in a cloud agent, at the desk, or as Joe's decision? See [docs/router.md](docs/router.md). | Python 3 |
 | `tools/release.py` | Is this version ready to release? It checks, then creates the GitHub release. The loop is in [docs/workflow.md](docs/workflow.md). | Python 3, git, a signed-in `gh` |
 | `tools/jev.py` | The shared door to TypeSafe's Jev, used by the census and the router. Standard library only; fails open. | Python 3 |
@@ -135,7 +139,7 @@ Jev is optional everywhere. Set `TYPESAFE_API_KEY` in your environment to turn i
 **Start here:** `viewer/main.js` for the viewer, `server/serve.mjs` for the headers, and `stages/` for your own exports.
 
 <details>
-<summary>The full map, 17 entries</summary>
+<summary>The full map, 18 entries</summary>
 
 ```
 server/serve.mjs          static server: COOP/COEP headers, four mounts, no traversal
@@ -144,8 +148,9 @@ viewer/main.js            Hydra route, USDLoader route, lighting bridge, USD cam
 tools/                    census, router, decisions, Jev client, fixture builders
 python/webexport/         Web Export core (pure pxr): report, settings, inventory, USD-folder profile and writer
 packages/                 the Houdini package file for Web Export
-scripts/                  install_package.py: deploys the package into your Houdini prefs
-houdini/                  HOUDINI_PATH root for the Web Export HDA (built in M5)
+scripts/                  install_package.py and build_hda.py: deploy the package, rebuild the HDA
+houdini/                  HOUDINI_PATH root for the Web Export package
+houdini/otls/web_export.hda  the Web Export LOP asset (File IO/Export), built by scripts/build_hda.py
 fixtures/stage/           Solaris-shaped test stage: shot.usda, hero/asset.usda, env/sky.hdr
 fixtures/stage-flat/      the same asset flattened to .usdz for three's own USDLoader
 fixtures/stage-dirty/     a stage with eight planted problems, for the census
@@ -154,7 +159,7 @@ stages/                   your exports go here (git-ignored)
 plan/                     roadmap tasks, the Web Export blueprint and its wave 2 tasks, recorded decisions
 tests/                    Python unit tests and a local Jev stand-in
 tests/browser/            headless Chromium smoke test and screenshots
-docs/                     architecture, versions, lighting, gotchas, operator's cards, brand assets
+docs/                     architecture, versions, lighting, gotchas, operator's cards (census, router, web export), brand assets
 ```
 
 </details>
