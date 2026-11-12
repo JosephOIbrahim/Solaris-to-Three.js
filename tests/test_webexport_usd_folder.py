@@ -474,12 +474,12 @@ class Contracts(TempCase):
         self.assertFalse((self.tmp / "out").exists())
 
     def test_check_writes_nothing(self):
-        reports = api.check(Usd.Stage.Open(str(CLEAN)), jev_on=False)
+        reports = api.check(Usd.Stage.Open(str(CLEAN)), ["usd_folder"], jev_on=False)
         self.assertEqual([(r.format, r.verdict) for r in reports], [("usd_folder", "GO")])
 
     def test_unknown_format_is_refused(self):
         with self.assertRaises(ValueError):
-            api.export(Usd.Stage.Open(str(CLEAN)), ["gltf"], self.tmp / "out")
+            api.export(Usd.Stage.Open(str(CLEAN)), ["x3d"], self.tmp / "out")  # M8, not written yet
         self.assertFalse((self.tmp / "out").exists())
 
     def test_validate_reports_instead_of_exiting(self):

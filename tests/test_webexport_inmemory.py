@@ -213,13 +213,13 @@ class BlockingLopStage(TempCase):
 class CheckInMemory(TempCase):
     def test_check_reports_a_lop_stage_without_writing_it(self):
         stage, _layers = lop_stage()
-        reports = api.check(stage, jev_on=False)
+        reports = api.check(stage, ["usd_folder"], jev_on=False)
         self.assertEqual([(r.format, r.verdict) for r in reports], [("usd_folder", "GO")])
         self.assertEqual(stage.GetPrimAtPath("/hero").GetVariantSet("look").GetVariantSelection(), "blue")
 
     def test_check_reports_a_blocking_lop_stage(self):
         stage, _layers = lop_stage(texture="./missing.png")
-        self.assertEqual([r.verdict for r in api.check(stage, jev_on=False)], ["FIX FIRST"])
+        self.assertEqual([r.verdict for r in api.check(stage, ["usd_folder"], jev_on=False)], ["FIX FIRST"])
 
 
 @unittest.skipIf(Usd is None, NEEDS_PXR)

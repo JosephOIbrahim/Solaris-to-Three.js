@@ -24,6 +24,8 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 - `docs/web-export.md`, the operator's card for the node: install, the three buttons, reading the report, the batch path and the traps.
 - Every validation problem now travels as a report item, so `validated=False` always carries its reason. A report refuses a verdict that contradicts its items and recomputes it when read back, and a report is bound to the stage it was built from.
 
+- glTF export (`python/webexport/profiles/gltf.py`, `writers/gltf.py`): `api.export(stage, ["gltf"])` writes one `.glb` with meshes (quads triangulated, world transforms baked), UsdPreviewSurface to PBR, PNG and JPEG base colour textures embedded in the file, a camera, `KHR_lights_punctual` for sphere and distant lights, and `EXT_mesh_gpu_instancing` for PointInstancers. The report says what glTF cannot carry: subdivision as its cage, geometry variants reduced to the selected option, material variants not encoded yet, area and dome lights dropped, and any image that is not PNG or JPEG as a block. `validate_glb()` re-opens the file and checks the container, every accessor and every image.
+
 ### Fixed
 
 - When `/WebSettings` has no `web:title`, the viewer now titles the page and the HUD with the stage file name, as blueprint section 4.5 says, and records where the title came from. A browser check covers it.

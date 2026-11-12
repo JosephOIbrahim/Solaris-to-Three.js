@@ -1,0 +1,387 @@
+"""glTF writer: one .glb with a JSON chunk and a BIN chunk, packed with struct.
+
+Blueprint 4.4, mission M7, and the route chosen in docs/decisions/0001-gltf-writer.md: pure
+Python from pxr, no glTF library, no numpy. The spike in scripts/spike_gltf_writer.py proved
+the container and the hard parts; this is the production version of the same mechanics.
+
+What it writes: meshes (quads triangulated, purpose default and render), world transforms baked
+into vertices, UsdPreviewSurface to pbrMetallicRoughness, base colour textures embedded as PNG
+or JPEG, one camera, KHR_lights_punctual for sphere and distant lights, and EXT_mesh_gpu_instancing
+for PointInstancers. The seven /WebSettings values travel in `extras`, so the player can read them.
+
+What it does not write, and the profile reports instead: subdivision limit surfaces, geometry
+variants other than the selected one, material variants, area and dome lights, volumes, and
+animation beyond the current time sample.
+
+validate_glb() re-opens what was written and checks the container structurally; the M7 unit test
+and ExportResult.validated both use it.
+"""
+from __future__ import annotations
+
+import json
+import math
+import struct
+from pathlib import Path
+
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
+
+from ..report import LossReport
+from ..textures import copy  # noqa: F401  (kept for parity with the USD writer's imports)
+from .base import ExportResult
+
+FORMAT = "gltf"
+COMPONENT = {"float": 5126, "uint": 5125}
+ARITY = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "MAT4": 16}
+IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+
+
+class _Glb:
+    """Builds the two chunks. Nothing here knows about USD."""
+
+    def __init__(self):
+        self.bin = bytearray()
+        self.doc = {
+            "asset": {"version": "2.0", "generator": "webexport"},
+            "extensionsUsed": [], "scene": 0, "scenes": [{"nodes": [], "extras": {}}],
+            "nodes": [], "meshes": [], "materials": [], "cameras": [], "images": [],
+            "textures": [], "samplers": [], "accessors": [], "bufferViews": [], "buffers": [],
+        }
+        self._materials: dict[str, int] = {}
+        self._images: dict[str, int] = {}
+
+    def view(self, data: bytes, target: int | None = None) -> int:
+        while len(self.bin) % 4:
+            self.bin.append(0)
+        offset = len(self.bin)
+        self.bin += data
+        view = {"buffer": 0, "byteOffset": offset, "byteLength": len(data)}
+        if target:
+            view["target"] = target
+        self.doc["bufferViews"].append(view)
+        return len(self.doc["bufferViews"]) - 1
+
+    def accessor(self, values, kind: str, gtype: str, minmax: bool = False,
+                 target: int = 34962) -> int:
+        fmt = {"float": "f", "uint": "I"}[kind]
+        flat = list(values) if gtype == "SCALAR" else [c for v in values for c in v]
+        data = struct.pack("<%d%s" % (len(flat), fmt), *flat)
+        accessor = {"bufferView": self.view(data, target), "componentType": COMPONENT[kind],
+                    "count": len(values), "type": gtype}
+        if minmax and values:
+            accessor["min"] = [min(v[i] for v in values) for i in range(ARITY[gtype])]
+            accessor["max"] = [max(v[i] for v in values) for i in range(ARITY[gtype])]
+        self.doc["accessors"].append(accessor)
+        return len(self.doc["accessors"]) - 1
+
+    def node(self, **fields) -> int:
+        self.doc["nodes"].append(fields)
+        self.doc["scenes"][0]["nodes"].append(len(self.doc["nodes"]) - 1)
+        return len(self.doc["nodes"]) - 1
+
+    def image(self, path: Path) -> int | None:
+        mime = IMAGE_TYPES.get(path.suffix.lower())
+        if not mime or not path.exists():
+            return None
+        if str(path) in self._images:
+            return self._images[str(path)]
+        view = self.view(path.read_bytes())
+        self.doc["images"].append({"mimeType": mime, "bufferView": view, "name": path.name})
+        self.doc["samplers"].append({"magFilter": 9729, "minFilter": 9987,
+                                     "wrapS": 10497, "wrapT": 10497})
+        self.doc["textures"].append({"sampler": len(self.doc["samplers"]) - 1,
+                                     "source": len(self.doc["images"]) - 1})
+        index = len(self.doc["textures"]) - 1
+        self._images[str(path)] = index
+        return index
+
+    def material(self, material: UsdShade.Material | None, label: str) -> int:
+        key = str(material.GetPath()) if material else f"default:{label}"
+        if key in self._materials:
+            return self._materials[key]
+        base, metal, rough, texture = (0.8, 0.8, 0.8), 0.0, 0.5, None
+        if material:
+            surface = material.ComputeSurfaceSource("universal")[0]
+            if surface:
+                for name in ("diffuseColor", "base_color", "metallic", "metalness",
+                             "roughness", "specular_roughness"):
+                    value = surface.GetInput(name).Get() if surface.GetInput(name) else None
+                    if value is None:
+                        continue
+                    if name in ("diffuseColor", "base_color"):
+                        base = (float(value[0]), float(value[1]), float(value[2]))
+                    elif name in ("metallic", "metalness"):
+                        metal = float(value)
+                    else:
+                        rough = float(value)
+                texture = _base_colour_texture(surface)
+        pbr = {"baseColorFactor": [base[0], base[1], base[2], 1.0],
+               "metallicFactor": metal, "roughnessFactor": rough}
+        entry = {"name": label, "pbrMetallicRoughness": pbr}
+        if texture:
+            index = self.image(texture)
+            if index is not None:
+                pbr["baseColorTexture"] = {"index": index}
+        self.doc["materials"].append(entry)
+        self._materials[key] = len(self.doc["materials"]) - 1
+        return self._materials[key]
+
+    def encode(self) -> bytes:
+        self.doc["buffers"] = [{"byteLength": len(self.bin)}]
+        chunk = json.dumps(self.doc, separators=(",", ":")).encode()
+        chunk += b" " * ((4 - len(chunk) % 4) % 4)
+        body = bytes(self.bin) + b"\0" * ((4 - len(self.bin) % 4) % 4)
+        total = 12 + 8 + len(chunk) + 8 + len(body)
+        return (b"glTF" + struct.pack("<II", 2, total)
+                + struct.pack("<I4s", len(chunk), b"JSON") + chunk
+                + struct.pack("<I4s", len(body), b"BIN\0") + body)
+
+
+def _base_colour_texture(surface) -> Path | None:
+    """The PNG or JPEG behind diffuseColor or base_color, if one is connected."""
+    for name in ("diffuseColor", "base_color"):
+        inp = surface.GetInput(name)
+        source = inp.GetConnectedSource() if inp else None
+        if not source:
+            continue
+        shader = UsdShade.Shader(source[0].GetPrim())
+        for candidate in (shader, *[UsdShade.Shader(r.GetTargets()[0].GetPrim())
+                                    for r in shader.GetInputs()
+                                    if r.GetConnectedSource()]):
+            file_input = candidate.GetInput("file")
+            asset = file_input.Get() if file_input else None
+            if asset and asset.path:
+                resolved = asset.resolvedPath or asset.path
+                path = Path(resolved)
+                if path.suffix.lower() in IMAGE_TYPES:
+                    return path
+    return None
+
+
+def triangulate(counts, indices) -> list[int]:
+    out, cursor = [], 0
+    for count in counts:
+        face = indices[cursor:cursor + count]
+        cursor += count
+        for i in range(1, count - 1):
+            out += [face[0], face[i], face[i + 1]]
+    return out
+
+
+def _world_points(prim, points):
+    xform = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+    return [xform.Transform(Gf.Vec3d(p)) for p in points]
+
+
+def _uvs(prim, indices, point_count):
+    primvar = UsdGeom.PrimvarsAPI(prim).GetPrimvar("st")
+    if not primvar or not primvar.HasValue():
+        return None
+    values, corners = primvar.Get(), primvar.GetIndices()
+    per_point = [None] * point_count
+    if corners:
+        for corner, index in enumerate(corners):
+            if index < point_count:
+                per_point[index] = values[corner]
+    else:
+        per_point = list(values)
+    return [[p[0], 1.0 - p[1]] if p else [0.0, 0.0] for p in (per_point[i] for i in indices)]
+
+
+def _normals(world, indices):
+    out = []
+    for i in range(0, len(indices), 3):
+        a, b, c = (world[indices[i + k]] for k in range(3))
+        cross = (b - a).GetCross(c - a)
+        n = cross.GetNormalized() if cross.GetLength() else Gf.Vec3d(0, 1, 0)
+        out += [[n[0], n[1], n[2]]] * 3
+    return out
+
+
+def validate_glb(path: Path) -> tuple[bool, list[str]]:
+    """The structural checks the M7 test makes: container, accessors, images."""
+    problems: list[str] = []
+    raw = Path(path).read_bytes()
+    if len(raw) < 20:
+        return False, ["file is shorter than a glTF header"]
+    magic, version, total = struct.unpack("<4sII", raw[:12])
+    if magic != b"glTF":
+        problems.append("not a glTF file: bad magic")
+    if version != 2:
+        problems.append(f"glTF version {version}, expected 2")
+    if total != len(raw):
+        problems.append(f"header length {total} does not match the file size {len(raw)}")
+    json_len, json_type = struct.unpack("<I4s", raw[12:20])
+    if json_type != b"JSON":
+        problems.append("first chunk is not JSON")
+    try:
+        doc = json.loads(raw[20:20 + json_len])
+    except Exception as exc:  # a broken chunk is the failure this function exists to catch
+        return False, problems + [f"JSON chunk does not parse: {exc}"]
+    try:
+        bin_len, bin_type = struct.unpack("<I4s", raw[20 + json_len:28 + json_len])
+        if bin_type != b"BIN\0":
+            problems.append("second chunk is not BIN")
+        if doc.get("buffers") and doc["buffers"][0]["byteLength"] > bin_len:
+            problems.append("buffer byteLength is longer than the BIN chunk")
+    except struct.error:
+        problems.append("no BIN chunk")
+    views = doc.get("bufferViews", [])
+    for i, accessor in enumerate(doc.get("accessors", [])):
+        view = views[accessor["bufferView"]] if accessor["bufferView"] < len(views) else None
+        if view is None:
+            problems.append(f"accessor {i} points at a missing bufferView")
+            continue
+        width = 4 if accessor["componentType"] in (5125, 5126) else 2
+        need = accessor["count"] * ARITY[accessor["type"]] * width
+        if need > view["byteLength"]:
+            problems.append(f"accessor {i} needs {need} bytes, its view has {view['byteLength']}")
+    for i, image in enumerate(doc.get("images", [])):
+        if "bufferView" in image:
+            if image["bufferView"] >= len(views):
+                problems.append(f"image {i} points at a missing bufferView")
+        elif not image.get("uri"):
+            problems.append(f"image {i} has neither a bufferView nor a uri")
+    for i, texture in enumerate(doc.get("textures", [])):
+        if texture.get("source", 0) >= len(doc.get("images", [])):
+            problems.append(f"texture {i} points at a missing image")
+    return not problems, problems
+
+
+class GltfWriter:
+    name = FORMAT
+
+    def __init__(self, report: LossReport, root: str | None = None):
+        self.report = report
+        self.root = root  # the root layer identifier the report was built from
+
+    def entry_file(self, stage: Usd.Stage, out_dir: Path) -> Path:
+        name = stage.GetDefaultPrim().GetName() if stage.GetDefaultPrim() else "stage"
+        return Path(out_dir) / f"{name}.glb"
+
+    def write(self, stage: Usd.Stage, inv, out_dir: Path, settings) -> ExportResult:
+        if self.report is None:
+            raise ValueError("the glTF writer needs its report first (principle 1)")
+        if self.root is not None and self.root != stage.GetRootLayer().identifier:
+            raise ValueError(f"this report was built for {self.root}, not {stage.GetRootLayer().identifier}")
+        if any(item.severity == "blocks" for item in self.report.items):
+            entry = self.entry_file(stage, out_dir)
+            return ExportResult(FORMAT, entry, [], 0, self.report, False)
+
+        glb = _Glb()
+        glb.doc["scenes"][0]["extras"] = _settings_extras(settings)
+        for prim in stage.Traverse():
+            if prim.IsA(UsdGeom.Mesh) and UsdGeom.Imageable(prim).ComputePurpose() in ("default", "render"):
+                self._mesh(glb, prim)
+            elif prim.IsA(UsdGeom.PointInstancer):
+                self._instancer(glb, prim)
+        for prim in stage.Traverse():
+            if prim.IsA(UsdGeom.Camera):
+                self._camera(glb, prim)
+                break
+        for prim in stage.Traverse():
+            if prim.GetTypeName().endswith("Light"):
+                self._light(glb, prim)
+
+        out_dir = Path(out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        entry = self.entry_file(stage, out_dir)
+        data = glb.encode()
+        entry.write_bytes(data)
+        try:
+            ok, problems = validate_glb(entry)
+        except Exception as exc:  # a file that cannot be read is not a validated file
+            ok, problems = False, [str(exc)]
+        if not ok:
+            raise RuntimeError("the .glb failed its own structural validation: " + "; ".join(problems))
+        return ExportResult(FORMAT, entry, [entry], len(data), self.report, ok)
+
+    # -- prims -----------------------------------------------------------------------
+    def _mesh(self, glb: _Glb, prim) -> None:
+        mesh = UsdGeom.Mesh(prim)
+        counts = mesh.GetFaceVertexCountsAttr().Get()
+        indices = mesh.GetFaceVertexIndicesAttr().Get()
+        points = mesh.GetPointsAttr().Get()
+        if not counts or not indices or not points:
+            return
+        tris = triangulate(counts, indices)
+        world = _world_points(prim, points)
+        positions = [[p[0], p[1], p[2]] for p in world]
+        attributes = {"POSITION": glb.accessor(positions, "float", "VEC3", minmax=True),
+                      "NORMAL": glb.accessor(_normals(world, tris), "float", "VEC3")}
+        uv = _uvs(prim, tris, len(points))
+        if uv:
+            attributes["TEXCOORD_0"] = glb.accessor(uv, "float", "VEC2")
+        bound = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
+        glb.doc["meshes"].append({"name": prim.GetName(), "primitives": [{
+            "attributes": attributes, "indices": glb.accessor(tris, "uint", "SCALAR", target=34963),
+            "mode": 4, "material": glb.material(bound, prim.GetName())}]})
+        glb.node(name=str(prim.GetPath()), mesh=len(glb.doc["meshes"]) - 1)
+
+    def _instancer(self, glb: _Glb, prim) -> None:
+        instancer = UsdGeom.PointInstancer(prim)
+        positions = instancer.GetPositionsAttr().Get()
+        prototypes = instancer.GetPrototypesRel().GetTargets()
+        if not positions or not prototypes:
+            return
+        proto = prim.GetStage().GetPrimAtPath(prototypes[0])
+        mesh = UsdGeom.Mesh(proto)
+        points, counts, indices = (mesh.GetPointsAttr().Get(), mesh.GetFaceVertexCountsAttr().Get(),
+                                   mesh.GetFaceVertexIndicesAttr().Get())
+        if not points or not counts or not indices:
+            return
+        tris = triangulate(counts, indices)
+        verts = [[p[0], p[1], p[2]] for p in points]
+        attributes = {"POSITION": glb.accessor(verts, "float", "VEC3", minmax=True),
+                      "NORMAL": glb.accessor(_normals([Gf.Vec3d(*v) for v in verts], tris),
+                                             "float", "VEC3")}
+        bound = UsdShade.MaterialBindingAPI(proto).ComputeBoundMaterial()[0]
+        glb.doc["meshes"].append({"name": proto.GetName(), "primitives": [{
+            "attributes": attributes, "indices": glb.accessor(tris, "uint", "SCALAR", target=34963),
+            "mode": 4, "material": glb.material(bound, proto.GetName())}]})
+        xform = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+        world = [[xform.Transform(Gf.Vec3d(p))[i] for i in range(3)] for p in positions]
+        if "EXT_mesh_gpu_instancing" not in glb.doc["extensionsUsed"]:
+            glb.doc["extensionsUsed"].append("EXT_mesh_gpu_instancing")
+        glb.node(name=str(prim.GetPath()), mesh=len(glb.doc["meshes"]) - 1,
+                 extensions={"EXT_mesh_gpu_instancing": {
+                     "attributes": {"TRANSLATION": glb.accessor(world, "float", "VEC3")}}})
+
+    def _camera(self, glb: _Glb, prim) -> None:
+        camera = UsdGeom.Camera(prim)
+        focal = camera.GetFocalLengthAttr().Get() or 35.0
+        aperture = camera.GetVerticalApertureAttr().Get() or 20.25
+        clip = camera.GetClippingRangeAttr().Get()
+        glb.doc["cameras"].append({"type": "perspective", "perspective": {
+            "yfov": 2 * math.atan(aperture / (2 * focal)),
+            "znear": float(clip[0]) if clip else 0.05,
+            "zfar": float(clip[1]) if clip else 1000.0}})
+        glb.node(name=str(prim.GetPath()), camera=len(glb.doc["cameras"]) - 1)
+
+    def _light(self, glb: _Glb, prim) -> None:
+        kind = prim.GetTypeName()
+        if kind not in ("SphereLight", "DistantLight", "CylinderLight"):
+            return
+        intensity = prim.GetAttribute("inputs:intensity")
+        exposure = prim.GetAttribute("inputs:exposure")
+        lumens = (intensity.Get() if intensity and intensity.HasAuthoredValue() else 1.0)
+        stops = (exposure.Get() if exposure and exposure.HasAuthoredValue() else 0.0)
+        colour = prim.GetAttribute("inputs:color")
+        c = colour.Get() if colour and colour.HasAuthoredValue() else (1.0, 1.0, 1.0)
+        lights = glb.doc.setdefault("extensions", {}).setdefault("KHR_lights_punctual", {"lights": []})
+        lights["lights"].append({"type": "point" if kind != "DistantLight" else "directional",
+                                 "color": [float(c[0]), float(c[1]), float(c[2])],
+                                 "intensity": 4 * math.pi * float(lumens) * (2 ** float(stops))})
+        if "KHR_lights_punctual" not in glb.doc["extensionsUsed"]:
+            glb.doc["extensionsUsed"].append("KHR_lights_punctual")
+        glb.node(name=str(prim.GetPath()),
+                 extensions={"KHR_lights_punctual": {"light": len(lights["lights"]) - 1}})
+
+
+def _settings_extras(settings) -> dict:
+    """The seven /WebSettings values, as data for the player; glTF has nowhere else to put them."""
+    if settings is None:
+        return {}
+    return {"web": {"title": settings.title, "camera": settings.camera,
+                    "hudVariantSets": settings.hudVariantSets, "showProxy": settings.showProxy,
+                    "backgroundBlur": settings.backgroundBlur,
+                    "exposureOffset": settings.exposureOffset, "showHud": settings.showHud}}

@@ -27,14 +27,16 @@ from pathlib import Path
 from pxr import Usd, UsdUtils
 
 from .inventory import gather
+from .profiles.gltf import GltfProfile
 from .profiles.usd_folder import UsdFolderProfile
 from .report import LossItem, LossReport
 from .settings import WebSettings, read_settings
 from .validate import web_census
 from .writers.base import ExportResult
+from .writers.gltf import GltfWriter
 from .writers.usd_folder import UsdFolderWriter
 
-FORMATS = ("usd_folder",)  # v0.2. glTF (M7) and X3D (M8) join here.
+FORMATS = ("usd_folder", "gltf")  # v0.3 adds glTF (M7); X3D (M8) joins here.
 REPO = Path(__file__).resolve().parents[2]
 PORT = 5180  # server/serve.mjs
 HOUDINI_LAYER_INFO = "/HoudiniLayerInfo"  # Houdini session data; never part of a web export
@@ -94,6 +96,10 @@ def _with_items(report: LossReport, items: list[LossItem]) -> LossReport:
 
 def _assess(stage: Usd.Stage, fmt: str, facts, jev_on: bool):
     """(report, writer) for one format, the report built before the writer exists."""
+    if fmt == "gltf":
+        profile = GltfProfile(facts.inventory)
+        report = LossReport.from_items(fmt, profile.assess(facts.inventory))
+        return report, GltfWriter(report=report, root=stage.GetRootLayer().identifier)
     if fmt == "usd_folder":
         profile = UsdFolderProfile(stage=stage, facts=facts, jev_on=jev_on)
         report = LossReport.from_items(fmt, profile.assess(facts.inventory), jev_note=profile.jev_note)
@@ -141,8 +147,9 @@ def export(stage: Usd.Stage, formats, out_dir, settings: WebSettings | None = No
                 results.append(ExportResult(fmt, writer.entry_file(live, out_dir), [], 0, report, False))
                 continue
             result = writer.write(live, facts.inventory, out_dir, settings)
-            url = preview_url(result.entry_file) if result.files else None
-            if result.files and url is None:  # fail open, fail loud: say why there is no preview
+            url = (preview_url(result.entry_file)
+                   if result.files and fmt == "usd_folder" else None)
+            if result.files and fmt == "usd_folder" and url is None:  # say why there is no preview
                 result.report = _with_items(result.report, [
                     LossItem("note", "preview_url", 1, [result.entry_file.name], PREVIEW_MISSING, PREVIEW_FIX)])
             result.preview_url = url
