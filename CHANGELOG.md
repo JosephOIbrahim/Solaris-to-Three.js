@@ -4,6 +4,8 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-11
+
 ### Added
 
 - The Web Export core skeleton (`python/webexport`): `LossReport` and `LossItem` with the verdict rule, `render_text` and JSON round-trip, the `Profile` and `Writer` contracts, and `/WebSettings` read and write, all pure `pxr`.
@@ -84,7 +86,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.2.0
 [0.1.3]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.3
 [0.1.2]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.2
 [0.1.1]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.1.1
