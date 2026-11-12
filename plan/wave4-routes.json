@@ -1,0 +1,96 @@
+{
+  "note": "Jev jev-latest",
+  "routes": [
+    {
+      "id": "X1",
+      "title": "Bake xform animation into the X3D writer",
+      "after": [],
+      "jev_where": "cloud",
+      "where_conf": 0.76,
+      "scaffold": "fixture",
+      "effort": 2.24,
+      "effort_conf": 0.73,
+      "unsure": false,
+      "lane": "cloud",
+      "model": "opus"
+    },
+    {
+      "id": "U1",
+      "title": "Add a USDZ profile and writer",
+      "after": [],
+      "jev_where": "cloud",
+      "where_conf": 0.92,
+      "scaffold": "spike",
+      "effort": 2.14,
+      "effort_conf": 0.67,
+      "unsure": false,
+      "lane": "cloud",
+      "model": "opus"
+    },
+    {
+      "id": "P1",
+      "title": "Build the Qt report panel",
+      "after": [],
+      "jev_where": "cloud",
+      "where_conf": 0.82,
+      "scaffold": "?",
+      "effort": 2.8,
+      "effort_conf": 0.8,
+      "unsure": false,
+      "lane": "cloud",
+      "model": "opus"
+    },
+    {
+      "id": "S1",
+      "title": "Wire the Synapse tool",
+      "after": [],
+      "jev_where": "cloud",
+      "where_conf": 0.73,
+      "scaffold": "?",
+      "effort": 1.44,
+      "effort_conf": 0.37,
+      "unsure": false,
+      "lane": "cloud",
+      "model": "opus"
+    },
+    {
+      "id": "R1",
+      "title": "Release 0.5.0",
+      "after": [],
+      "jev_where": "cloud",
+      "where_conf": 0.16,
+      "scaffold": "none",
+      "effort": 1.54,
+      "effort_conf": 0.52,
+      "unsure": true,
+      "lane": "decision",
+      "model": "-"
+    },
+    {
+      "id": "J1",
+      "title": "Upload the social preview image",
+      "after": [],
+      "jev_where": "desk",
+      "where_conf": 0.74,
+      "scaffold": "none",
+      "effort": 0.11,
+      "effort_conf": 0.9,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "J2",
+      "title": "Check the Preview button in the GUI",
+      "after": [],
+      "jev_where": "desk",
+      "where_conf": 0.96,
+      "scaffold": "?",
+      "effort": 1.06,
+      "effort_conf": 0.89,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+ "plan": "Wave 4: finish animation parity in X3D, add USDZ, and decide the later blueprint revisions. glTF animation baking shipped in d078c6a (121 samples, LINEAR, verified); X3D still writes only the current time sample.",
+ "environment": {
+   "cloud": "An AI coding agent in a git worktree with py -3.12 (usd-core 26.5), Node 24, headless Chromium and network. It must not run Houdini or hython, must not write the Houdini prefs, and must not act in Joe's GitHub account.",
+   "desk": "Joe's Windows workstation: Houdini 22.0.x with hython, the OneDrive houdini22.0 prefs, gh CLI. Plain python 3.14 is broken (lost its DLLs); py -3.12 and hython work.",
+   "joe": "Joe Ibrahim, owner of releases, licensing and taste decisions."
+ },
+ "tasks": [
+  {"id": "X1", "title": "Bake xform animation into the X3D writer", "detail": "Sample a moving node's local-to-world across the stage's time range and write X3D TimeSensor plus Orientation/PositionInterpolator nodes with ROUTE statements, the way the glTF writer writes animation channels. Extend the X3D test to check the interpolators and key counts, and change the profile's animation item from a loss to a note."},
+  {"id": "U1", "title": "Add a USDZ profile and writer", "detail": "Write a .usdz with UsdUtils.CreateNewUsdzPackage from the USD-folder writer's output, and a profile that reports what a USDZ can carry, including what Quick Look reads."},
+  {"id": "P1", "title": "Build the Qt report panel", "detail": "A panel using a copy of Synapse's design system at commit 36148779, rendering LossReport side by side per format."},
+  {"id": "S1", "title": "Wire the Synapse tool", "detail": "An optional tool in the Synapse repo that calls webexport.api.export when this package is present."},
+  {"id": "R1", "title": "Release 0.5.0", "detail": "Bump, roll the changelog, push, wait for CI, and create the GitHub release with tools/release.py."},
+  {"id": "J1", "title": "Upload the social preview image", "detail": "docs/assets/social-preview.png goes in the repository Settings; GitHub has no supported API for it."},
+  {"id": "J2", "title": "Check the Preview button in the GUI", "detail": "Whether a Web Export Preview click in houdini GUI flashes a console or stalls the UI, and whether the server outlives Houdini."}
+ ]
+}
