@@ -1,0 +1,70 @@
+{
+  "note": "Jev jev-latest",
+  "routes": [
+    {
+      "id": "D1",
+      "title": "Refresh the README and its Mermaid diagrams",
+      "after": [],
+      "jev_where": "cloud",
+      "where_conf": 0.61,
+      "scaffold": "?",
+      "effort": 2.39,
+      "effort_conf": 0.52,
+      "unsure": false,
+      "lane": "cloud",
+      "model": "opus"
+    },
+    {
+      "id": "D2",
+      "title": "Evolve the logo mark to four formats",
+      "after": [],
+      "jev_where": "desk",
+      "where_conf": 0.55,
+      "scaffold": "none",
+      "effort": 2.06,
+      "effort_conf": 0.67,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "M1",
+      "title": "Update the GitHub topics and description",
+      "after": [],
+      "jev_where": "desk",
+      "where_conf": 0.4,
+      "scaffold": "none",
+      "effort": 0.22,
+      "effort_conf": 0.78,
+      "unsure": true,
+      "lane": "decision",
+      "model": "-"
+    },
+    {
+      "id": "C1",
+      "title": "Merge the design work, test and push",
+      "after": [],
+      "jev_where": "cloud",
+      "where_conf": 0.83,
+      "scaffold": "?",
+      "effort": 1.84,
+      "effort_conf": 0.81,
+      "unsure": false,
+      "lane": "cloud",
+      "model": "opus"
+    },
+    {
+      "id": "J1",
+      "title": "Upload the social preview image",
+      "after": [],
+      "jev_where": "desk",
+      "where_conf": 0.8,
+      "scaffold": "none",
+      "effort": 0.11,
+      "effort_conf": 0.9,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    }
+  ]
+}

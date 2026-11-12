@@ -1,0 +1,35 @@
+{
+ "plan": "Wave 5: close the loop after 0.5.0. Refresh the README and its Mermaid diagrams for four formats and animation, and evolve the logo mark from three formats to four. Joe has already asked for this; releases are not in scope.",
+ "environment": {
+  "cloud": "An AI coding agent in a git worktree with py -3.12, Node 24, Playwright and ffmpeg; no Houdini, no hython, no prefs writes, no GitHub account actions.",
+  "desk": "Joe's Windows workstation with Houdini 22.0.x, hython and gh. Plain python 3.14 is broken; py -3.12 and hython work.",
+  "joe": "Joe Ibrahim, owner of taste, licensing and release decisions."
+ },
+ "tasks": [
+  {
+   "id": "D1",
+   "title": "Refresh the README and its Mermaid diagrams",
+   "detail": "Bring the calm-format README and the two Mermaid diagrams up to 0.5.0: four formats from one node, the USD, glTF and X3D players, animation baking, USDZ packaging, and the report panel and Synapse tool as planned."
+  },
+  {
+   "id": "D2",
+   "title": "Evolve the logo mark to four formats",
+   "detail": "Keep the house tokens and the existing file names, and take the mark from three hairline scanlines to four, one per format, then re-render the lockups and the social preview."
+  },
+  {
+   "id": "M1",
+   "title": "Update the GitHub topics and description",
+   "detail": "Set the description and add glTF, X3D and USDZ topics now that the formats exist."
+  },
+  {
+   "id": "C1",
+   "title": "Merge the design work, test and push",
+   "detail": "Merge both lanes, run npm test and the browser test, and push."
+  },
+  {
+   "id": "J1",
+   "title": "Upload the social preview image",
+   "detail": "docs/assets/social-preview.png goes in the repository Settings."
+  }
+ ]
+}
