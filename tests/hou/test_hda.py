@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from pathlib import Path
 import sys
 import tempfile
 
@@ -96,6 +97,13 @@ def main(argv=None):
     result["verdicts_by_format"] = [line.strip() for line in (result["export"]["report"] or "").splitlines()
                                     if line.strip().startswith(("FIX FIRST", "GO, WITH NOTES", "GO"))]
 
+    want = {"fmt_usd": ".usda", "fmt_gltf": ".glb", "fmt_x3d": ".x3d", "fmt_usdz": ".usdz"}
+    on = {ext for parm, ext in want.items() if inst.parm(parm) and inst.parm(parm).eval()}
+    have = {Path(f).suffix.lower() for f in result["files"]}
+    missing = sorted(on - have)
+    result["formats_ticked"] = sorted(on)
+    result["formats_written"] = sorted(have & on)
+
     text = json.dumps(result, indent=1)
     if a.json:
         open(a.json, "w", encoding="utf-8").write(text)
@@ -108,6 +116,19 @@ def main(argv=None):
     if a.expect and result["verdict"] != a.expect:
         print(f"EXPECTED {a.expect}, GOT {result['verdict']}", file=sys.stderr)
         return 4
+
+    # The formats that are ticked must each land a file. Without this, a disabled or broken
+    # writer passes as long as the remaining ones export, which is how a format can silently
+    # stop shipping.
+    if missing:
+        print(f"MISSING output for ticked format(s): {missing}", file=sys.stderr)
+        return 5
+    if result["check"].get("errorsAfterCook"):
+        print("the badge reported an error on a non-blocking export", file=sys.stderr)
+        return 6
+    if result["verdict"] == "FIX FIRST":
+        print("the export reported FIX FIRST; nothing should have been written", file=sys.stderr)
+        return 7
     return 0
 
 

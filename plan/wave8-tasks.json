@@ -1,0 +1,40 @@
+{
+ "plan": "Wave 8, from v0.6.3. The pasted open list was stale: animation is baked in both writers, the USDZ toggle has been live since 0.6.0, python 3.14 is repaired. What is left is below; most of it needs a GUI, Joe's accounts, or a new blueprint revision.",
+ "environment": {
+  "cloud": "An AI coding agent in a git worktree with py -3.12, Node, Playwright; no Houdini, no hython, no GUI, no GitHub account actions.",
+  "desk": "Joe's workstation: Houdini 22.0.x with hython, a GUI session for Qt, his GitHub account, his real scenes.",
+  "joe": "Joe Ibrahim, owner of releases, taste and the Synapse repo."
+ },
+ "tasks": [
+  {
+   "id": "P1",
+   "title": "Build the Qt report panel",
+   "detail": "A Qt view of LossReport side by side per format, using a copy of Synapse's design system at 36148779. Needs a GUI session to see and test."
+  },
+  {
+   "id": "S1",
+   "title": "Wire the Synapse tool",
+   "detail": "An optional tool in the Synapse repo calling webexport.api.export. Outside this repo's boundary."
+  },
+  {
+   "id": "J1",
+   "title": "Upload the social preview image",
+   "detail": "GitHub Settings; no supported API."
+  },
+  {
+   "id": "J2",
+   "title": "Check the Preview button in the GUI",
+   "detail": "Console flash, UI stall, server lifetime after Houdini quits."
+  },
+  {
+   "id": "T3",
+   "title": "Export a real Karma scene",
+   "detail": "T03: one real asset through the node, census and both players, and compare with Karma. The only check that tests the reports against reality."
+  },
+  {
+   "id": "SP1",
+   "title": "Spike the splats format",
+   "detail": "Blueprint schedules splats after USDZ. A throwaway spike: can a Gaussian-splat stage be written from pxr in CI, and what does the loss report say."
+  }
+ ]
+}

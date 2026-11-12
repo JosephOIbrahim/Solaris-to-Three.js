@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+### Changed
+
+- `tests/hou/test_hda.py` now fails when a ticked format writes no file, when the badge errors on a non-blocking export, or when a FIX FIRST export writes anything. Before, a broken or disabled writer passed as long as the remaining formats exported. Proven on 22.0.400, .492 and .466: four ticked, four written.
+
+
 # Changelog
 
 All notable changes are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
