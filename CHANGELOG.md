@@ -8,6 +8,7 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 - `docs/review-2026-11-12.md`, an independent review of the tree at v0.6.10 by three lanes (export core, browser side, docs and tooling), ranked and deduplicated: four blockers, nineteen majors, twelve minors, the areas that held up, and six refinements.
 - `plan/harness-blueprint.md` and `plan/harness-spec.md`: the dev-workflow harness, derived from the review. One rule above all: no gate counts unless it has been seen to fail. Shape is a lean code agent with one orchestrator; primitives are the gate registry, mutation ledger, claims ledger, golden tasks, replay runner and lessons ledger.
+- B1 is fixed: the glTF writer expands vertices per corner and welds only when position, normal and UV agree, so POSITION, NORMAL and TEXCOORD_0 are parallel arrays indexed by the same index buffer. A UV seam is now representable. `validate_glb` checks attribute parity, that indices stay inside the vertex array and that triangle indices come in threes, and the test suite includes the mutation that proves it fails. `fixtures/stage-flat/hero.glb` is regenerated: the floor's attributes are 4/4/4 and each pedestal's are 24/24.
 
 ## [0.6.10] - 2026-11-12
 

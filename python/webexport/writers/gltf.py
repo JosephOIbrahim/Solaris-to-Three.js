@@ -287,24 +287,59 @@ def _animated(prim) -> bool:
     return not (_same(probes[0], probes[1]) and _same(probes[1], probes[2]))
 
 
+def expand_vertices(points, normals, uvs, indices):
+    """Make POSITION, NORMAL and TEXCOORD_0 parallel arrays, indexed by the same indices.
+
+    A point can carry a different normal or UV at different corners (a UV seam, a hard edge), so
+    a corner is a vertex of its own unless all three agree. Returns (positions, normals, uvs,
+    indices) where the three attribute arrays are the same length and the index buffer indexes it.
+    """
+    seen = {}
+    positions, out_normals, out_uvs, out_indices = [], [], [], []
+    for corner, point_index in enumerate(indices):
+        normal = normals[corner] if normals else None
+        uv = uvs[corner] if uvs else None
+        key = (point_index, tuple(normal) if normal else None, tuple(uv) if uv else None)
+        vertex = seen.get(key)
+        if vertex is None:
+            vertex = len(positions)
+            seen[key] = vertex
+            p = points[point_index]
+            positions.append([p[0], p[1], p[2]])
+            if normal is not None:
+                out_normals.append(list(normal))
+            if uv is not None:
+                out_uvs.append(list(uv))
+        out_indices.append(vertex)
+    return positions, out_normals, out_uvs, out_indices
+
+
 def _world_points(prim, points):
     xform = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
     return [xform.Transform(Gf.Vec3d(p)) for p in points]
 
 
 def _uvs(prim, indices, point_count):
+    """One UV per triangle corner. A primvar's own indices address corners, never points; without
+    them a vertex primvar is indexed by the point, and a faceVarying one by the corner itself."""
     primvar = UsdGeom.PrimvarsAPI(prim).GetPrimvar("st")
     if not primvar or not primvar.HasValue():
         return None
     values, corners = primvar.Get(), primvar.GetIndices()
-    per_point = [None] * point_count
-    if corners:
-        for corner, index in enumerate(corners):
-            if index < point_count:
-                per_point[index] = values[corner]
-    else:
-        per_point = list(values)
-    return [[p[0], 1.0 - p[1]] if p else [0.0, 0.0] for p in (per_point[i] for i in indices)]
+    if not values:
+        return None
+    out = []
+    for corner in range(len(indices)):
+        if corners:
+            index = corners[corner] if corner < len(corners) else 0
+        else:
+            index = indices[corner] if len(values) == point_count else corner
+        if index >= len(values):
+            out.append([0.0, 0.0])
+            continue
+        v = values[index]
+        out.append([float(v[0]), 1.0 - float(v[1])])
+    return out
 
 
 def _normals(world, indices):
@@ -355,6 +390,26 @@ def validate_glb(path: Path) -> tuple[bool, list[str]]:
         need = accessor["count"] * ARITY[accessor["type"]] * width
         if need > view["byteLength"]:
             problems.append(f"accessor {i} needs {need} bytes, its view has {view['byteLength']}")
+    for m, mesh in enumerate(doc.get("meshes", [])):
+        for pr, primitive in enumerate(mesh.get("primitives", [])):
+            attrs = primitive.get("attributes", {})
+            counts = {name: doc["accessors"][idx]["count"] for name, idx in attrs.items()}
+            if len(set(counts.values())) > 1:
+                problems.append(f"mesh {m} primitive {pr}: attribute counts disagree ({counts}); "
+                                "they must be parallel arrays indexed by the same indices")
+            if counts and primitive.get("indices") is not None:
+                idx_accessor = doc["accessors"][primitive["indices"]]
+                allowed = next(iter(counts.values()))
+                # the byte view holds the raw indices; read them from the BIN chunk
+                view = doc["bufferViews"][idx_accessor["bufferView"]]
+                start = 28 + json_len + view.get("byteOffset", 0)
+                count = idx_accessor["count"]
+                if start + count * 4 <= len(raw):
+                    data = raw[start:start + count * 4]
+                    if max(struct.unpack("<%dI" % count, data), default=0) >= allowed:
+                        problems.append(f"mesh {m} primitive {pr}: an index exceeds the {allowed} vertices")
+                if count % 3:
+                    problems.append(f"mesh {m} primitive {pr}: {count} indices is not a multiple of 3 (mode 4)")
     for i, image in enumerate(doc.get("images", [])):
         if "bufferView" in image:
             if image["bufferView"] >= len(views):
@@ -467,15 +522,18 @@ class GltfWriter:
             return
         tris = triangulate(counts, indices)
         local = [Gf.Vec3d(p[0], p[1], p[2]) for p in points]
-        positions = [[p[0], p[1], p[2]] for p in local]
-        attributes = {"POSITION": glb.accessor(positions, "float", "VEC3", minmax=True),
-                      "NORMAL": glb.accessor(_normals(local, tris), "float", "VEC3")}
+        normals = _normals(local, tris)
         uv = _uvs(prim, tris, len(points))
-        if uv:
-            attributes["TEXCOORD_0"] = glb.accessor(uv, "float", "VEC2")
+        # one vertex per corner, welded only when position, normal and UV all agree: that is the
+        # only way the three attribute arrays can be parallel and indexed by the same indices
+        positions, expanded_normals, expanded_uv, indices_out = expand_vertices(local, normals, uv, tris)
+        attributes = {"POSITION": glb.accessor(positions, "float", "VEC3", minmax=True),
+                      "NORMAL": glb.accessor(expanded_normals, "float", "VEC3")}
+        if expanded_uv:
+            attributes["TEXCOORD_0"] = glb.accessor(expanded_uv, "float", "VEC2")
         bound = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
         primitive = {"attributes": attributes,
-                     "indices": glb.accessor(tris, "uint", "SCALAR", target=34963),
+                     "indices": glb.accessor(indices_out, "uint", "SCALAR", target=34963),
                      "mode": 4, "material": glb.material(bound, prim.GetName())}
         mappings = _variant_mappings(glb, prim, getattr(self, "inv", None))
         if mappings:
@@ -498,13 +556,14 @@ class GltfWriter:
         if not points or not counts or not indices:
             return
         tris = triangulate(counts, indices)
-        verts = [[p[0], p[1], p[2]] for p in points]
+        local = [Gf.Vec3d(p[0], p[1], p[2]) for p in points]
+        verts, normals_out, _uvs_out, indices_out = expand_vertices(
+            local, _normals(local, tris), None, tris)
         attributes = {"POSITION": glb.accessor(verts, "float", "VEC3", minmax=True),
-                      "NORMAL": glb.accessor(_normals([Gf.Vec3d(*v) for v in verts], tris),
-                                             "float", "VEC3")}
+                      "NORMAL": glb.accessor(normals_out, "float", "VEC3")}
         bound = UsdShade.MaterialBindingAPI(proto).ComputeBoundMaterial()[0]
         glb.doc["meshes"].append({"name": proto.GetName(), "primitives": [{
-            "attributes": attributes, "indices": glb.accessor(tris, "uint", "SCALAR", target=34963),
+            "attributes": attributes, "indices": glb.accessor(indices_out, "uint", "SCALAR", target=34963),
             "mode": 4, "material": glb.material(bound, proto.GetName())}]})
         local = [[float(p[0]), float(p[1]), float(p[2])] for p in positions]
         if "EXT_mesh_gpu_instancing" not in glb.doc["extensionsUsed"]:

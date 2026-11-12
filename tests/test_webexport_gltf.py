@@ -208,6 +208,44 @@ class GltfExportTest(unittest.TestCase):
         self.assertAlmostEqual(by_name["chrome"]["metallicFactor"], 1.0, places=3)
         self.assertLess(by_name["chrome"]["roughnessFactor"], by_name["ember"]["roughnessFactor"])
 
+    def test_every_primitive_has_parallel_attribute_arrays(self):
+        """B1: POSITION, NORMAL and TEXCOORD_0 must be parallel and indexed by the same indices."""
+        result = self.export()[0]
+        doc = read_glb(result.entry_file)
+        for mesh in doc["meshes"]:
+            for primitive in mesh["primitives"]:
+                counts = {name: doc["accessors"][idx]["count"]
+                          for name, idx in primitive["attributes"].items()}
+                self.assertEqual(len(set(counts.values())), 1,
+                                 f"{mesh['name']}: attribute counts disagree: {counts}")
+                # the index buffer is the corner list, not the vertex list: its length differs
+                indices = doc["accessors"][primitive["indices"]]
+                self.assertEqual(indices["count"] % 3, 0, "triangles are indexed in threes")
+
+    def test_validate_glb_rejects_a_primitive_whose_attributes_diverge(self):
+        """The new check is only a gate if it fails. Shorten one attribute's count and re-check."""
+        result = self.export()[0]
+        raw = bytearray(result.entry_file.read_bytes())
+        jlen = struct.unpack("<I", raw[12:16])[0]
+        doc = json.loads(bytes(raw[20:20 + jlen]))
+        primitive = doc["meshes"][0]["primitives"][0]
+        idx = primitive["attributes"]["NORMAL"]
+        doc["accessors"][idx]["count"] = 1  # a count that cannot match POSITION
+        chunk = json.dumps(doc, separators=(",", ":")).encode()
+        chunk += b" " * ((4 - len(chunk) % 4) % 4)
+        with tempfile.TemporaryDirectory() as folder:
+            broken = Path(folder) / "broken.glb"
+            total = 12 + 8 + len(chunk) + 8 + (len(raw) - (28 + jlen))
+            raw = bytes(raw)
+            body = raw[28 + jlen:]
+            body += b"\0" * ((4 - len(body) % 4) % 4)
+            broken.write_bytes(b"glTF" + struct.pack("<II", 2, total)
+                               + struct.pack("<I4s", len(chunk), b"JSON") + chunk
+                               + struct.pack("<I4s", len(body), b"BIN\0") + body)
+            ok, problems = validate_glb(broken)
+            self.assertFalse(ok, "a mismatched attribute count must be caught")
+            self.assertTrue(any("parallel" in p for p in problems), problems)
+
     def test_an_animated_stage_exports_time_samples(self):
         """The animated fixture turns a full circle over 121 frames; every frame must be in the file."""
         animated = ROOT / "fixtures" / "stage-animated" / "animated.usda"
