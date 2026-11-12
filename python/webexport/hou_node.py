@@ -22,7 +22,7 @@ import webbrowser
 
 import hou  # the one place this is allowed
 
-PORT = 5180
+PORT = int(os.environ.get("WEBEXPORT_PORT", "5180"))  # 5180 is the repo default; tests use their own
 VERDICT_CODE = {"GO": 0, "GO, WITH NOTES": 1, "FIX FIRST": 2}
 
 
@@ -160,7 +160,8 @@ def on_preview(kwargs):
         _put(node, "report", f"Preview: no server at {server}. Set WEBEXPORT_ROOT to the repo.")
         return
     flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-    subprocess.Popen([node_and_module_argv()[0], server], cwd=root,
+    env = dict(os.environ, PORT=str(PORT))  # serve.mjs reads PORT; WEBEXPORT_PORT only picks it here
+    subprocess.Popen([node_and_module_argv()[0], server], cwd=root, env=env,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
                      creationflags=flags)
     if not no_browser:

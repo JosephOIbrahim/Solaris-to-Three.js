@@ -35,9 +35,10 @@ def build_chain(parent, hda_path):
     hou.hda.installFile(hda_path, force_use_assets=True)
     definition = hou.hda.definitionsInFile(hda_path)[0]
     inst = parent.createNode(TYPE, "web_export", exact_type_name=True)
-    feeder = parent.createNode("createxform", "feeder", exact_type_name=True)
-    if feeder.parm("primpath"):
-        feeder.parm("primpath").set("/feeder")
+    # the fixture stage, so the export has layers, a payload and a texture to prove
+    feeder = parent.createNode("sublayer", "shot", exact_type_name=True)
+    feeder.parm("filepath1").set(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))), "fixtures", "stage", "shot.usda"))
     inst.setInput(0, feeder)
     return inst, definition
 

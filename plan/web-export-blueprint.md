@@ -256,7 +256,7 @@ Check: unit test exports the fixture to `.x3d`, schema-valid, `Switch` has 3 chi
 
 Nobody has confirmed these. The mission that touches one must verify it first and record the result here.
 
-1. Whether a LOP HDA button callback can safely start a long-lived Node process on Windows (M5). Fallback: print the command and open the URL only.
+1. Whether a LOP HDA button callback can safely start a long-lived Node process on Windows (M5). **Verified 2026-11-11, headless path:** from hython 22.0.400, pressing Preview starts `server/serve.mjs` detached on the chosen port (5 `WEBEXPORT_PORT`), it answers on that port, and it outlives the hython process. Still open: the GUI path (question 43), whether a click flashes a console or stalls the UI.
 2. X_ITE's licence (M8). X3DOM is MIT/GPL dual but does not support X3D 4.0.
 3. Whether Houdini's own glTF output can take a LOP stage directly (M7 spike).
 4. How MaterialX networks authored by Karma expose a usable base colour without baking (M7, M8).
