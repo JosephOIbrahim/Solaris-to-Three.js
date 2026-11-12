@@ -283,7 +283,7 @@ docs/decisions/           the design records, starting with the glTF writer rout
 
 ### <img src="docs/assets/swatch-moss.svg" width="11" height="11" alt=""> Testing
 
-`npm test` runs the syntax checks and 158 Python tests. The census tests need `pxr` and skip themselves without it; the router tests need only Python. Jev is tested against a local stand-in that speaks TypeSafe's documented response shapes, so no key is needed and nothing leaves the machine.
+`npm test` runs the syntax checks and 170 Python tests. The census tests need `pxr` and skip themselves without it; the router tests need only Python. Jev is tested against a local stand-in that speaks TypeSafe's documented response shapes, so no key is needed and nothing leaves the machine.
 
 The viewer works end to end on a synthetic Solaris-shaped stage in headless Chromium. The 18 browser checks include both players and the exported fixtures, and the X3D output is checked against the official X3D 4.0 schema. `npm run test:browser` opens the pages, exercises every feature, saves screenshots to `shots/` and fails if the page errors, a material falls back or a route doesn't load. **Start the server first**, and install Playwright with Chromium (`npm i --no-save playwright && npx playwright install chromium`).
 
