@@ -1,6 +1,6 @@
-# Handoff after v0.6.1
+# Handoff after v0.6.2
 
-Start a fresh session in `E:\Myth_and_Logic\Software\Solaris-to-Three.js` with this note, `plan/web-export-blueprint.md` and `plan/wave7-tasks.json`. v0.6.1 is the current release; one LOP node writes four formats. glTF is shipped, so the old wave 3 mission is closed: this note is about what comes after it.
+Start a fresh session in `E:\Myth_and_Logic\Software\Solaris-to-Three.js` with this note, `plan/web-export-blueprint.md` and `plan/wave7-tasks.json`. v0.6.2 is the current release; one LOP node writes four formats. glTF is shipped, so the old wave 3 mission is closed: this note is about what comes after it.
 
 Reading path: section 01 for where things stand, 02 for what is next, then 03 and 04 before touching anything. About five minutes.
 
@@ -8,7 +8,7 @@ Reading path: section 01 for where things stand, 02 for what is next, then 03 an
 
 ### 01. Where things stand (2026-11-12)
 
-01. `package.json` and `CHANGELOG.md` say **v0.6.1**, released 2026-11-12 (pre-release, tag `v0.6.1` at `4de9b07`). CI is green on `c120fdd`, the animation-honesty changelog commit (run 43246658318). `main` at `53a32e3` adds only the wave 7 plan.
+01. `package.json`, `README.md` and `CHANGELOG.md` say **v0.6.2**, released 2026-11-12 (pre-release, tag `v0.6.2`). CI is green on the release commit, and the on-demand browser dispatch on it passed 18 of 18. `tests/test_claims.py` now fails if the README version, the current release's bullets, the format list or a relative link drifts from the code.
 
 02. One LOP node, `mythandlogic::web_export::1.0`, installs from `py -3.12 scripts/install_package.py` and writes four formats from one Export: USD Folder, glTF (`.glb`), X3D (`.x3d`) and USDZ (`.usdz`). `api.FORMATS` is `("usd_folder", "gltf", "x3d", "usdz")`; splats is the planned fifth and is not written. With all four toggles on, the fixture gives GO and Export writes all four on hython 22.0.400, .492 and .466.
 
@@ -18,13 +18,13 @@ Reading path: section 01 for where things stand, 02 for what is next, then 03 an
    - **glTF** bakes a moving node's transform as LINEAR samplers, one sample per frame (121 on the animated fixture), and encodes `KHR_materials_variants`.
    - **X3D** bakes the same motion as a `TimeSensor`, interpolators and `ROUTE`s, 121 keys.
    - **USDZ** packs the USD folder, root layer and assets with `UsdUtils.CreateNewUsdzPackage`.
-   - **Animation honesty** is in the tree but not in v0.6.1: X3D names a scale change it cannot represent instead of holding the start pose, and both glTF and X3D report animated points, shader inputs and visibility as `animated_attribute` at the current time sample only, because only transforms are baked. The probe is start/middle/end, so a motion that returns to its start pose at all three probes is reported static (blueprint section 6, item 9).
+   - **Animation honesty** shipped in v0.6.2: X3D names a scale change it cannot represent instead of holding the start pose, and both glTF and X3D report animated points, shader inputs and visibility as `animated_attribute` at the current time sample only, because only transforms are baked. The probe is start/middle/end, so a motion that returns to its start pose at all three probes is reported static (blueprint section 6, item 9).
 
 05. Players: three on one server — the USD viewer (`viewer/index.html`, OpenUSD in WebAssembly and Hydra), the glTF player (`viewer/players/gltf.html`, three's `GLTFLoader`), and the X3D player (`viewer/players/x3d.html`, X_ITE 16.7.1, MIT).
 
-06. Tests: `npm test` (syntax checks plus the Python suite) passes, and `py -3.12 -m unittest discover -s tests` reports **164 Python tests**. The browser suite is **18 checks** (`tests/browser/smoke.mjs`); it passed on GitHub's `ubuntu-latest` runner and runs on `workflow_dispatch`, not every push. To run it locally, start the server first and install Playwright with Chromium.
+06. Tests: `npm test` (syntax checks plus the Python suite) passes, and `py -3.12 -m unittest discover -s tests` reports **172 Python tests**. The browser suite is **18 checks** (`tests/browser/smoke.mjs`); it passed on GitHub's `ubuntu-latest` runner and runs on `workflow_dispatch`, not every push. To run it locally, start the server first and install Playwright with Chromium.
 
-07. Prose that has not caught up with the code, verified 2026-11-12: README's Testing section says 158 Python tests while discovery runs 164; `docs/web-export.md`'s "Proven" and "Where it lives" still describe the USD-folder-only build; `writers/gltf.py`'s module header says animation beyond the current time sample is not written, although `_animate` bakes node transforms. Check these before quoting them.
+07. The prose drift found earlier is fixed, and `tests/test_claims.py` guards the classes of it that matters: the README's version, release bullets, format list, relative links and the card's paths. The README no longer states a test count, deliberately: it changed four times in a day.
 
 08. Machine: use `py -3.12` for tests and scripts. It has `usd-core` 26.5 and no numpy, PIL, pygltflib or trimesh, so the writers pack binary themselves and copy image bytes as they are. Hython runs pin `HOUDINI_USER_PREF_DIR=C:/Users/User/OneDrive/Documents/houdini22.0`. Plain `python` is 3.14.2 today, its `python314.dll` is present, and `npm test` ran the full suite through it; the pinned interpreter is still 3.12 because that is what CI tests. The E1 repair task remains on the list.
 
@@ -109,4 +109,4 @@ Still unsettled:
 
 ---
 
-The node, the four formats and the three players are shipped at v0.6.1. Nothing in the export path blocks the next session; the choice of feature is Joe's.
+The node, the four formats and the three players are shipped at v0.6.2. Nothing in the export path blocks the next session; the choice of feature is Joe's.
