@@ -1,0 +1,83 @@
+{
+  "note": "Jev jev-latest",
+  "routes": [
+    {
+      "id": "F1",
+      "title": "Report animation only when something actually moves",
+      "after": [],
+      "jev_where": "cloud",
+      "where_conf": 0.62,
+      "scaffold": "?",
+      "effort": 1.63,
+      "effort_conf": 0.5,
+      "unsure": false,
+      "lane": "cloud",
+      "model": "opus"
+    },
+    {
+      "id": "F2",
+      "title": "Add a claims-consistency test",
+      "after": [],
+      "jev_where": "cloud",
+      "where_conf": 0.98,
+      "scaffold": "?",
+      "effort": 1.96,
+      "effort_conf": 0.92,
+      "unsure": false,
+      "lane": "cloud",
+      "model": "opus"
+    },
+    {
+      "id": "F3",
+      "title": "Refresh the handoff for the current state",
+      "after": [],
+      "jev_where": "cloud",
+      "where_conf": 0.85,
+      "scaffold": "none",
+      "effort": 1.1,
+      "effort_conf": 0.89,
+      "unsure": false,
+      "lane": "cloud",
+      "model": "haiku"
+    },
+    {
+      "id": "J1",
+      "title": "Upload the social preview image",
+      "after": [],
+      "jev_where": "desk",
+      "where_conf": 0.18,
+      "scaffold": "none",
+      "effort": 0.05,
+      "effort_conf": 0.96,
+      "unsure": true,
+      "lane": "decision",
+      "model": "-"
+    },
+    {
+      "id": "J2",
+      "title": "Check the Preview button in the GUI",
+      "after": [],
+      "jev_where": "desk",
+      "where_conf": 0.6,
+      "scaffold": "?",
+      "effort": 1.43,
+      "effort_conf": 0.55,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    },
+    {
+      "id": "E1",
+      "title": "Repair python 3.14",
+      "after": [],
+      "jev_where": "desk",
+      "where_conf": 0.66,
+      "scaffold": "spike",
+      "effort": 2.66,
+      "effort_conf": 0.65,
+      "unsure": false,
+      "lane": "desk",
+      "model": "-"
+    }
+  ]
+}

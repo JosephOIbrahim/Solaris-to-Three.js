@@ -1,0 +1,40 @@
+{
+ "plan": "Wave 7: fixes and unresolved matters at v0.6.1 / c120fdd. Two first-principles issues dominate: a report that fires on a declared time range rather than on actual motion, and prose that drifts from code because nothing checks it.",
+ "environment": {
+  "cloud": "An AI coding agent in a git worktree with py -3.12 (usd-core 26.5), Node 24; no Houdini, no hython, no prefs writes, no GitHub actions.",
+  "desk": "Joe's workstation: Houdini 22.0.x, hython, GUI for Qt, gh. Plain python 3.14 is broken.",
+  "joe": "Joe Ibrahim, owner of releases, taste and the Synapse repo."
+ },
+ "tasks": [
+  {
+   "id": "F1",
+   "title": "Report animation only when something actually moves",
+   "detail": "Both profiles raise the plain animation note on any stage with a time range, including one whose animation is trivial or absent in practice. Probe instead: does any exported prim's local-to-world or a tracked attribute vary across start/middle/end? Report only then, and say which."
+  },
+  {
+   "id": "F2",
+   "title": "Add a claims-consistency test",
+   "detail": "A unit test that fails when README's version differs from package.json, when a release section has no bullets, when the README's format list differs from api.FORMATS, or when a local link in README/docs is missing. The recurring failure this session was prose drifting from code, which green tests never caught."
+  },
+  {
+   "id": "F3",
+   "title": "Refresh the handoff for the current state",
+   "detail": "plan/wave3-handoff.md still describes glTF as the next mission. Rewrite it as the handoff for whatever comes after v0.6.1, with the verified facts and the remaining open items."
+  },
+  {
+   "id": "J1",
+   "title": "Upload the social preview image",
+   "detail": "Settings, Social preview."
+  },
+  {
+   "id": "J2",
+   "title": "Check the Preview button in the GUI",
+   "detail": "Console flash, UI stall, server lifetime."
+  },
+  {
+   "id": "E1",
+   "title": "Repair python 3.14",
+   "detail": "Machine-level interpreter repair."
+  }
+ ]
+}
