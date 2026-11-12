@@ -102,12 +102,6 @@ def _world_points(prim, points):
     return [xform.Transform(Gf.Vec3d(p)) for p in points]
 
 
-def _stage_time(prim) -> float:
-    """The time a static node is written at: the stage start, else 1."""
-    stage = prim.GetStage()
-    return float(stage.GetStartTimeCode() if stage.GetStartTimeCode() else 1.0)
-
-
 def _trs(prim, time: float) -> dict:
     """Translation, rotation (x, y, z, w) and scale from a prim's local-to-world at one time."""
     matrix = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode(time))
@@ -185,7 +179,7 @@ def _rotation_keys(samples) -> list[tuple[tuple[float, float, float], float]]:
     return keys
 
 
-def _frames(stage) -> tuple[float, float, float, list[int]]:
+def _frames(stage) -> tuple[int, int, float, list[int]]:
     """(start, end, fps, frames) sampled across the stage's range.
 
     A very long range is decimated so the file stays bounded; the last frame is always kept.
