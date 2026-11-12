@@ -257,7 +257,7 @@ Check: unit test exports the fixture to `.x3d`, schema-valid, `Switch` has 3 chi
 Nobody has confirmed these. The mission that touches one must verify it first and record the result here.
 
 1. Whether a LOP HDA button callback can safely start a long-lived Node process on Windows (M5). **Verified 2026-11-11, headless path:** from hython 22.0.400, pressing Preview starts `server/serve.mjs` detached on the chosen port (5 `WEBEXPORT_PORT`), it answers on that port, and it outlives the hython process. Still open: the GUI path (question 43), whether a click flashes a console or stalls the UI.
-2. X_ITE's licence (M8). X3DOM is MIT/GPL dual but does not support X3D 4.0.
+2. X_ITE's licence (M8). X3DOM is MIT/GPL dual but does not support X3D 4.0. **Answered 2026-11-11: MIT.** The project licence at `create3000/X_ITE/LICENSE.md` reads "The MIT License (MIT)", "Copyright (c) 2009 Holger Seelig and other contributors", with no added clauses, royalties or commercial terms; the README itself recommends loading the pinned build from jsDelivr. A player page may therefore load it, keeping the copyright notice.
 3. Whether Houdini's own glTF output can take a LOP stage directly (M7 spike). **Answered 2026-11-11: no.** `gltf::2.0` is a geometry ROP, and `usdimport`/`unpackusd` flatten the stage before it, losing variants and purpose. See `docs/decisions/0001-gltf-writer.md`.
 4. How MaterialX networks authored by Karma expose a usable base colour without baking (M7, M8).
 5. Whether three's WebGPU renderer can run Needle's MaterialX materials. Not needed before v0.5.

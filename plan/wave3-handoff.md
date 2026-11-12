@@ -68,7 +68,7 @@ Anything beyond these, especially a release, needs Joe's go-ahead. Hython runs o
 
 ### 06. Open items carried in
 
-01. **Blueprint section 6, item 3 is now answered** by the spike: no direct LOP-to-glTF path in Houdini. Item 2 (X_ITE's licence) stays open for M8.
+01. **Blueprint section 6, item 3 is now answered** by the spike: no direct LOP-to-glTF path in Houdini. Item 2 (X_ITE's licence) is answered: MIT, so an X3D player page may load it.
 
 02. **The GUI Preview check** (blueprint question 43) is still Joe's: whether a Preview click in the GUI flashes a console or stalls the UI.
 

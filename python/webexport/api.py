@@ -29,14 +29,16 @@ from pxr import Usd, UsdUtils
 from .inventory import gather
 from .profiles.gltf import GltfProfile
 from .profiles.usd_folder import UsdFolderProfile
+from .profiles.x3d import X3dProfile
 from .report import LossItem, LossReport
 from .settings import WebSettings, read_settings
 from .validate import web_census
 from .writers.base import ExportResult
 from .writers.gltf import GltfWriter
 from .writers.usd_folder import UsdFolderWriter
+from .writers.x3d import X3dWriter
 
-FORMATS = ("usd_folder", "gltf")  # v0.3 adds glTF (M7); X3D (M8) joins here.
+FORMATS = ("usd_folder", "gltf", "x3d")  # USDZ joins in M-later; splats after that.
 REPO = Path(__file__).resolve().parents[2]
 PORT = 5180  # server/serve.mjs
 HOUDINI_LAYER_INFO = "/HoudiniLayerInfo"  # Houdini session data; never part of a web export
@@ -96,6 +98,10 @@ def _with_items(report: LossReport, items: list[LossItem]) -> LossReport:
 
 def _assess(stage: Usd.Stage, fmt: str, facts, jev_on: bool):
     """(report, writer) for one format, the report built before the writer exists."""
+    if fmt == "x3d":
+        profile = X3dProfile(facts.inventory)
+        report = LossReport.from_items(fmt, profile.assess(facts.inventory))
+        return report, X3dWriter(report=report, root=stage.GetRootLayer().identifier)
     if fmt == "gltf":
         profile = GltfProfile(facts.inventory)
         report = LossReport.from_items(fmt, profile.assess(facts.inventory))

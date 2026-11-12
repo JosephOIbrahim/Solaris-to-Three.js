@@ -32,6 +32,8 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 - glTF material looks survive: the writer writes `KHR_materials_variants`, evaluates the bound material under each look of a material variant set and maps the primitive to one material per look. The fixture's `look` set now travels as chrome, ember and gold, with their own base colours, metalness and roughness, and the profile reports it as a note instead of a loss. Materials also resolve through the `mtlx` render context now, so MaterialX surfaces export their real values instead of the default grey.
 
+- X3D export (`python/webexport/profiles/x3d.py`, `writers/x3d.py`): `api.export(stage, ["x3d"])` writes X3D 4.0 XML with `Transform`/`Shape`/`IndexedFaceSet`, `PhysicalMaterial`, a `Switch` per material variant set (one group per look), `DEF`/`USE` for PointInstancers, a `Viewpoint` and `PointLight`/`DirectionalLight`. The file validates against the official X3D 4.0 schema, and the test checks that with lxml when the schema is reachable. The profile reports what X3D cannot carry: subdivision as its cage, material variants duplicated per look, area and dome lights dropped, and images that are not PNG or JPEG blocking the export.
+
 ### Fixed
 
 - When `/WebSettings` has no `web:title`, the viewer now titles the page and the HUD with the stage file name, as blueprint section 4.5 says, and records where the title came from. A browser check covers it.
