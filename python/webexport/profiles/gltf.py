@@ -8,16 +8,18 @@ cannot reproduce the stage.
               a composition error
     changes   subdivision shipped as its cage, geometry variants reduced to the selected option,
               material variants not encoded yet, lights glTF has no punctual equivalent for,
-              volumes dropped, MaterialX falling back to UsdPreviewSurface values
+              volumes dropped, MaterialX falling back to UsdPreviewSurface values, an animated
+              attribute the writers do not bake
     note      what survives in another form: instancing, flattened references and payloads,
-              PNG/JPEG images embedded in the file, the current time sample only
+              PNG/JPEG images embedded in the file, xform animation baked, the current time
+              sample of everything else
 
 The profile never judges what the writer then does with textures or lights; it reports the
 translation, and the writer's structural validation catches its own mistakes.
 """
 from __future__ import annotations
 
-from ..inventory import Inventory
+from ..inventory import Inventory, animated_attributes
 from ..report import LossItem
 
 EMBEDDABLE = {".png", ".jpg", ".jpeg"}
@@ -35,8 +37,9 @@ class GltfProfile:
     name = "gltf"
     extensions = (".glb",)
 
-    def __init__(self, inv: Inventory):
+    def __init__(self, inv: Inventory, stage=None):
         self.inv = inv
+        self.stage = stage  # the live stage, for the animated-attribute check; None skips it
 
     # -- the pieces ------------------------------------------------------------------
     def _images(self) -> list[LossItem]:
@@ -85,6 +88,10 @@ class GltfProfile:
         if self.inv.time_range and self.inv.time_range[0] != self.inv.time_range[1]:
             items.append(_item("note", "animation", [self.inv.root_layer],
                                "xform animation baked as glTF animations; other animated attributes are not"))
+        moving = animated_attributes(self.stage) if self.stage is not None else []
+        if moving:
+            items.append(_item("changes", "animated_attribute", moving,
+                               "the current time sample only; only transforms are baked"))
         return items
 
     def _lights(self) -> list[LossItem]:

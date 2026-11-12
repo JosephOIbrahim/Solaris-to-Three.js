@@ -105,11 +105,11 @@ def _with_items(report: LossReport, items: list[LossItem]) -> LossReport:
 def _assess(stage: Usd.Stage, fmt: str, facts, jev_on: bool):
     """(report, writer) for one format, the report built before the writer exists."""
     if fmt == "x3d":
-        profile = X3dProfile(facts.inventory)
+        profile = X3dProfile(facts.inventory, stage=stage)
         report = LossReport.from_items(fmt, profile.assess(facts.inventory))
         return report, X3dWriter(report=report, root=stage.GetRootLayer().identifier)
     if fmt == "gltf":
-        profile = GltfProfile(facts.inventory)
+        profile = GltfProfile(facts.inventory, stage=stage)
         report = LossReport.from_items(fmt, profile.assess(facts.inventory))
         return report, GltfWriter(report=report, root=stage.GetRootLayer().identifier)
     if fmt == "usd_folder":

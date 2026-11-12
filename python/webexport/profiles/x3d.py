@@ -8,14 +8,15 @@ into the Switch (which costs file size, not correctness).
               UDIM, .exr, .hdr, .tga), a missing image, a composition error
     changes   subdivision shipped as its cage, a material variant set duplicated once per look,
               volumes dropped, area and dome lights dropped, MaterialX falling back to
-              UsdPreviewSurface values
+              UsdPreviewSurface values, a scale animation X3D has no interpolator for, an
+              animated attribute the writers do not bake
     note      geometry variants kept as a Switch, instancing as DEF/USE, images copied beside
-              the file, references and payloads flattened, xform animation baked as a
-              TimeSensor and interpolators (other animated attributes are not)
+              the file, references and payloads flattened, rotation and translation baked as a
+              TimeSensor and interpolators
 """
 from __future__ import annotations
 
-from ..inventory import Inventory
+from ..inventory import Inventory, animated_attributes, scale_animated
 from ..report import LossItem
 
 FETCHABLE = {".png", ".jpg", ".jpeg"}
@@ -33,8 +34,9 @@ class X3dProfile:
     name = "x3d"
     extensions = (".x3d",)
 
-    def __init__(self, inv: Inventory | None = None):
+    def __init__(self, inv: Inventory | None = None, stage=None):
         self.inv = inv
+        self.stage = stage  # the live stage, for the animation checks; None means skip them
 
     def _images(self) -> list[LossItem]:
         material_images = {t for m in self.inv.materials for t in m.textures}
@@ -77,9 +79,20 @@ class X3dProfile:
         if self.inv.volumes:
             items.append(_item("changes", "volume", self.inv.volumes, "dropped; X3D has no volume prim"))
         if self.inv.time_range and self.inv.time_range[0] != self.inv.time_range[1]:
-            items.append(_item("note", "animation", [self.inv.root_layer],
-                               "xform animation baked as TimeSensor and interpolators; "
-                               "other animated attributes are not"))
+            scaling = scale_animated(self.stage) if self.stage is not None else []
+            if scaling:
+                items.append(_item("changes", "animation", scaling,
+                                   "rotation and translation baked; scale change not representable "
+                                   "in X3D",
+                                   "bake the scale into the mesh points, or accept the start pose"))
+            else:
+                items.append(_item("note", "animation", [self.inv.root_layer],
+                                   "xform animation baked as TimeSensor and interpolators; "
+                                   "other animated attributes are not"))
+        moving = animated_attributes(self.stage) if self.stage is not None else []
+        if moving:
+            items.append(_item("changes", "animated_attribute", moving,
+                               "the current time sample only; only transforms are baked"))
         return items
 
     def _lights(self) -> list[LossItem]:
