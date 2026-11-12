@@ -62,6 +62,45 @@ def texture_stage(folder: Path, image: str) -> Path:
     return folder / "tex.usda"
 
 
+QUAD = [Gf.Vec3f(0, 0, 0), Gf.Vec3f(1, 0, 0), Gf.Vec3f(1, 0, 1), Gf.Vec3f(0, 0, 1)]
+
+
+def attribute_stage(folder: Path, target: str) -> Path:
+    """A quad that animates one attribute a transform bake cannot carry: points, a shader
+    input, or visibility. Everything else stays static."""
+    folder.mkdir(parents=True, exist_ok=True)
+    stage = Usd.Stage.CreateNew(str(folder / "attr.usda"))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+    stage.SetStartTimeCode(1)
+    stage.SetEndTimeCode(24)
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/root").GetPrim())
+    mesh = UsdGeom.Mesh.Define(stage, "/root/quad")
+    mesh.CreateFaceVertexCountsAttr([4])
+    mesh.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    points = mesh.CreatePointsAttr()
+    if target == "points":
+        points.Set(QUAD, Usd.TimeCode(1))
+        points.Set([Gf.Vec3f(p[0], p[1] + 1.0, p[2]) for p in QUAD], Usd.TimeCode(24))
+    else:
+        points.Set(QUAD)
+    if target == "visibility":
+        visibility = UsdGeom.Imageable(mesh.GetPrim()).CreateVisibilityAttr()
+        visibility.Set(UsdGeom.Tokens.inherited, Usd.TimeCode(1))
+        visibility.Set(UsdGeom.Tokens.invisible, Usd.TimeCode(24))
+    if target == "shader":
+        material = UsdShade.Material.Define(stage, "/root/mtl")
+        surface = UsdShade.Shader.Define(stage, "/root/mtl/surf")
+        surface.CreateIdAttr("UsdPreviewSurface")
+        roughness = surface.CreateInput("roughness", Sdf.ValueTypeNames.Float)
+        roughness.Set(0.1, Usd.TimeCode(1))
+        roughness.Set(0.9, Usd.TimeCode(24))
+        material.CreateSurfaceOutput().ConnectToSource(
+            surface.CreateOutput("surface", Sdf.ValueTypeNames.Token))
+        UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(material)
+    stage.Save()
+    return folder / "attr.usda"
+
+
 class GltfExportTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -178,6 +217,28 @@ class GltfExportTest(unittest.TestCase):
         features = {item.feature: item for item in result.report.items}
         if "animation" in features:
             self.assertEqual(features["animation"].severity, "note")
+
+    def test_an_animated_non_transform_attribute_is_reported(self):
+        """glTF bakes xforms only; animated points, shader inputs and visibility are one item."""
+        expected = {"points": "/root/quad", "shader": "/root/mtl/surf", "visibility": "/root/quad"}
+        for target, prim in expected.items():
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as folder:
+                stage_path = attribute_stage(Path(folder), target)
+                report = api.check(Usd.Stage.Open(str(stage_path)), ["gltf"])[0]
+                features = {item.feature: item for item in report.items}
+                self.assertIn("animated_attribute", features)
+                item = features["animated_attribute"]
+                self.assertEqual(item.severity, "changes")
+                self.assertEqual(item.becomes,
+                                 "the current time sample only; only transforms are baked")
+                self.assertIn(prim, item.examples)
+
+    def test_a_transform_only_animation_is_not_an_animated_attribute(self):
+        animated = ROOT / "fixtures" / "stage-animated" / "animated.usda"
+        report = api.check(Usd.Stage.Open(str(animated)), ["gltf"])[0]
+        features = {item.feature for item in report.items}
+        self.assertIn("animation", features, "the rotation is still reported as baked")
+        self.assertNotIn("animated_attribute", features)
 
     def test_a_png_samples_into_the_file(self):
         with tempfile.TemporaryDirectory() as folder:

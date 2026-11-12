@@ -8,11 +8,14 @@ web census, so the two cannot disagree about what is on the stage.
     inv = build_inventory(Usd.Stage.Open("shot.usda"))
 
 The traversal is the census's: every active, loaded, defined prim, instance proxies
-included. Pure pxr (principle 3): runs under usd-core and under hython.
+included. Pure pxr (principle 3): runs under usd-core and under hython. The animation checks
+(animated_attributes, scale_animated) are separate short walks the glTF and X3D profiles call;
+they sample no frames.
 """
 from __future__ import annotations
 
 import glob
+import math
 import os
 import re
 from collections.abc import Iterable
@@ -25,6 +28,7 @@ __all__ = [
     "Inventory", "MeshFact", "InstancerFact", "MaterialFact", "LightFact", "CameraFact",
     "VariantFact", "CompositionFact", "TextureFact", "StageFacts",
     "build_inventory", "gather", "is_absolute", "inside", "asset_location",
+    "animated_attributes", "scale_animated",
 ]
 
 MaterialKind = Literal["preview", "materialx", "other"]
@@ -543,6 +547,73 @@ def gather(stage: Usd.Stage, track_types: Iterable[str] = ()) -> StageFacts:
     return StageFacts(inventory=inv, prims=prims, shaders=shaders, asset_rows=rows, lights_by_type=lights,
                       tracked=tracked, purposes=purposes, no_uv=no_uv, unbound=unbound, layers=layers,
                       outside=sorted(set(outside)), errors=errors)
+
+
+# ---- animation the writers do not bake --------------------------------------------------
+#
+# The glTF and X3D writers bake a prim's local-to-world transform only. A time-varying
+# attribute outside that transform (mesh points, a shader input, visibility) is written at its
+# current time sample, so both profiles report it. ValueMightBeTimeVarying() is USD's own cheap
+# check: no frame is sampled, and it is conservative (true for time samples or a value clip).
+
+NON_TRANSFORM_ATTRIBUTES = ("points", "positions", "visibility")
+
+
+def _animated_attribute(prim) -> bool:
+    for name in NON_TRANSFORM_ATTRIBUTES:
+        attr = prim.GetAttribute(name)
+        if attr and attr.ValueMightBeTimeVarying():
+            return True
+    if prim.IsA(UsdShade.Shader):
+        return any(a.GetName().startswith("inputs:") and a.ValueMightBeTimeVarying()
+                   for a in prim.GetAttributes())
+    return False
+
+
+def animated_attributes(stage: Usd.Stage) -> list[str]:
+    """Prim paths with a time-varying attribute that the writers do not bake (not a transform).
+
+    One walk of the composed stage, no per-frame work: ValueMightBeTimeVarying() is the check.
+    """
+    found, seen = [], set()
+    for prim in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies()):
+        path = str(prim.GetPath())
+        if path not in seen and _animated_attribute(prim):
+            seen.add(path)
+            found.append(path)
+    return found
+
+
+def _world_scale(prim, time: float) -> tuple[float, float, float]:
+    matrix = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode(time))
+    return tuple(math.sqrt(sum(matrix.GetColumn(i)[row] ** 2 for row in range(3)))
+                 for i in range(3))
+
+
+def scale_animated(stage: Usd.Stage) -> list[str]:
+    """Prim paths whose local-to-world scale differs across the stage's range.
+
+    The writers' own start/middle/end probes, applied to the scale column lengths (the same
+    extraction the X3D writer uses). This is the scale change X3D has no interpolator for: it
+    would be left at the start pose, so the profile names it rather than dropping it silently.
+    """
+    start, end = stage.GetStartTimeCode(), stage.GetEndTimeCode()
+    if start is None or end is None or end <= start:
+        return []
+    times = (start, (start + end) / 2.0, end)
+    found, seen = [], set()
+    for prim in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies()):
+        if not prim.IsA(UsdGeom.Xformable):
+            continue
+        path = str(prim.GetPath())
+        if path in seen:
+            continue
+        scales = [_world_scale(prim, time) for time in times]
+        if any(abs(scales[0][axis] - scales[2][axis]) > 1e-6
+               or abs(scales[1][axis] - scales[2][axis]) > 1e-6 for axis in range(3)):
+            seen.add(path)
+            found.append(path)
+    return found
 
 
 def build_inventory(stage: Usd.Stage) -> Inventory:

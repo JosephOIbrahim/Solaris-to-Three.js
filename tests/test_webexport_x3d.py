@@ -60,6 +60,65 @@ def texture_stage(folder: Path, image: str) -> Path:
     return folder / "tex.usda"
 
 
+QUAD = [Gf.Vec3f(0, 0, 0), Gf.Vec3f(1, 0, 0), Gf.Vec3f(1, 0, 1), Gf.Vec3f(0, 0, 1)]
+
+
+def attribute_stage(folder: Path, target: str) -> Path:
+    """A quad that animates one attribute an xform bake cannot carry: points, a shader input,
+    or visibility. Everything else stays static."""
+    folder.mkdir(parents=True, exist_ok=True)
+    stage = Usd.Stage.CreateNew(str(folder / "attr.usda"))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+    stage.SetStartTimeCode(1)
+    stage.SetEndTimeCode(24)
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/root").GetPrim())
+    mesh = UsdGeom.Mesh.Define(stage, "/root/quad")
+    mesh.CreateFaceVertexCountsAttr([4])
+    mesh.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    points = mesh.CreatePointsAttr()
+    if target == "points":
+        points.Set(QUAD, Usd.TimeCode(1))
+        points.Set([Gf.Vec3f(p[0], p[1] + 1.0, p[2]) for p in QUAD], Usd.TimeCode(24))
+    else:
+        points.Set(QUAD)
+    if target == "visibility":
+        visibility = UsdGeom.Imageable(mesh.GetPrim()).CreateVisibilityAttr()
+        visibility.Set(UsdGeom.Tokens.inherited, Usd.TimeCode(1))
+        visibility.Set(UsdGeom.Tokens.invisible, Usd.TimeCode(24))
+    if target == "shader":
+        material = UsdShade.Material.Define(stage, "/root/mtl")
+        surface = UsdShade.Shader.Define(stage, "/root/mtl/surf")
+        surface.CreateIdAttr("UsdPreviewSurface")
+        roughness = surface.CreateInput("roughness", Sdf.ValueTypeNames.Float)
+        roughness.Set(0.1, Usd.TimeCode(1))
+        roughness.Set(0.9, Usd.TimeCode(24))
+        material.CreateSurfaceOutput().ConnectToSource(
+            surface.CreateOutput("surface", Sdf.ValueTypeNames.Token))
+        UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(material)
+    stage.Save()
+    return folder / "attr.usda"
+
+
+def scale_stage(folder: Path) -> Path:
+    """A quad under a parent that scales from 1 to 2 over the range; it never moves or rotates."""
+    folder.mkdir(parents=True, exist_ok=True)
+    stage = Usd.Stage.CreateNew(str(folder / "scale.usda"))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+    stage.SetStartTimeCode(1)
+    stage.SetEndTimeCode(24)
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/root").GetPrim())
+    mover = UsdGeom.Xform.Define(stage, "/root/mover")
+    scale = mover.AddScaleOp()
+    scale.Set(Gf.Vec3f(1, 1, 1), Usd.TimeCode(1))
+    scale.Set(Gf.Vec3f(2, 2, 2), Usd.TimeCode(24))
+    mesh = UsdGeom.Mesh.Define(stage, "/root/mover/quad")
+    mesh.CreatePointsAttr(QUAD)
+    mesh.CreateFaceVertexCountsAttr([4])
+    mesh.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    stage.Save()
+    return folder / "scale.usda"
+
+
 @functools.lru_cache(maxsize=1)
 def official_schema():
     """(schema, reason). Downloads the X3D 4.0 schema and its includes once per run."""
@@ -154,6 +213,48 @@ class X3dExportTest(unittest.TestCase):
 
         features = {item.feature: item for item in result.report.items}
         self.assertEqual(features["animation"].severity, "note")
+
+    def test_an_animated_non_transform_attribute_is_reported(self):
+        """X3D bakes xforms only; animated points, shader inputs and visibility are one item."""
+        expected = {"points": "/root/quad", "shader": "/root/mtl/surf", "visibility": "/root/quad"}
+        for target, prim in expected.items():
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as folder:
+                stage_path = attribute_stage(Path(folder), target)
+                report = api.check(Usd.Stage.Open(str(stage_path)), ["x3d"])[0]
+                features = {item.feature: item for item in report.items}
+                self.assertIn("animated_attribute", features)
+                item = features["animated_attribute"]
+                self.assertEqual(item.severity, "changes")
+                self.assertEqual(item.becomes,
+                                 "the current time sample only; only transforms are baked")
+                self.assertIn(prim, item.examples)
+
+    def test_a_transform_only_animation_is_not_an_animated_attribute(self):
+        report = api.check(Usd.Stage.Open(str(ANIMATED)), ["x3d"])[0]
+        features = {item.feature for item in report.items}
+        self.assertIn("animation", features, "the rotation is still reported as baked")
+        self.assertNotIn("animated_attribute", features)
+
+    def test_a_scale_only_animation_is_reported_not_dropped_silently(self):
+        """X3D has no scale interpolator: the report names the gap and the writer leaves the
+        start pose rather than inventing an animation it cannot express."""
+        with tempfile.TemporaryDirectory() as folder:
+            stage_path = scale_stage(Path(folder))
+            report = api.check(Usd.Stage.Open(str(stage_path)), ["x3d"])[0]
+            features = {item.feature: item for item in report.items}
+            animation = features["animation"]
+            self.assertEqual(animation.severity, "changes")
+            self.assertEqual(animation.becomes,
+                             "rotation and translation baked; scale change not representable in X3D")
+            self.assertIn("/root/mover", animation.examples)
+
+            result = api.export(Usd.Stage.Open(str(stage_path)), ["x3d"], self.out)[0]
+            self.assertTrue(result.validated, result.report.render_text())
+            root = ET.parse(str(result.entry_file)).getroot()
+            self.assertEqual(list(root.iter("TimeSensor")), [],
+                             "nothing writable moves, so no sensor is invented")
+            self.assertEqual(list(root.iter("OrientationInterpolator")), [])
+            self.assertEqual(list(root.iter("PositionInterpolator")), [])
 
     def test_the_file_validates_against_the_official_schema(self):
         schema, reason = official_schema()
