@@ -4,6 +4,15 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-12
+
+This release keeps the README's version line in step with the package.
+
+### Fixed
+
+- The README's status line lagged the release (0.5.0 while the package said 0.6.0); it now says 0.6.1 and is checked against `package.json` before a release.
+
+
 ## [0.6.0] - 2026-11-12
 
 This release covers the USDZ toggle and the assess-all-first fix.
@@ -127,7 +136,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.1
 [0.6.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.0
 [0.5.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.5.0
 [0.4.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.4.0
