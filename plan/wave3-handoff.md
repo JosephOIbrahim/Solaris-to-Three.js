@@ -1,6 +1,6 @@
-# Handoff after v0.6.5
+# Handoff after v0.6.7
 
-Start a fresh session in `E:\Myth_and_Logic\Software\Solaris-to-Three.js` with this note, `plan/web-export-blueprint.md` and `plan/wave8-tasks.json`. v0.6.5 is the current release; one LOP node writes four formats. glTF is shipped, so the old wave 3 mission is closed: this note is about what comes after it.
+Start a fresh session in `E:\Myth_and_Logic\Software\Solaris-to-Three.js` with this note, `plan/web-export-blueprint.md` and `plan/wave8-tasks.json`. v0.6.7 is the current release; one LOP node writes four formats. glTF is shipped, so the old wave 3 mission is closed: this note is about what comes after it.
 
 Reading path: section 01 for where things stand, 02 for what is next, then 03 and 04 before touching anything. About five minutes.
 
@@ -8,7 +8,7 @@ Reading path: section 01 for where things stand, 02 for what is next, then 03 an
 
 ### 01. Where things stand (2026-11-12)
 
-01. `package.json`, `README.md` and `CHANGELOG.md` say **v0.6.5**, released 2026-11-12 (pre-release). The three patch releases since v0.6.2 changed nothing in the export path: v0.6.3 refreshed this note, v0.6.4 added the HDA format assertion and repaired the changelog's heading order, v0.6.5 added the changelog structural checks. CI passed on each release commit, and the on-demand browser dispatch on `41417d5` passed 18 of 18. `tests/test_claims.py` fails when the README version, the current release's bullets, the format list, a relative link, the card's paths, or the changelog's shape drift from the code.
+01. `package.json`, `README.md` and `CHANGELOG.md` say **v0.6.7**, released 2026-11-12 (pre-release). The five patches since v0.6.2 changed nothing in the export path: v0.6.3 refreshed this note, v0.6.4 added the HDA format assertion and repaired the changelog's heading order, v0.6.5 added the changelog shape checks, v0.6.6 refreshed this note again, and v0.6.7 added the blank-line check. CI passed on each release commit, and the on-demand browser dispatch on `d6b3b7a` passed 18 of 18. `tests/test_claims.py` fails when the README version, the current release's bullets, the format list, a relative link, the card's paths, or the changelog's shape drift from the code.
 
 02. One LOP node, `mythandlogic::web_export::1.0`, installs from `py -3.12 scripts/install_package.py` and writes four formats from one Export: USD Folder, glTF (`.glb`), X3D (`.x3d`) and USDZ (`.usdz`). `api.FORMATS` is `("usd_folder", "gltf", "x3d", "usdz")`; splats is the planned fifth and is not written. With all four toggles on, the fixture gives GO and Export writes all four on hython 22.0.400, .492 and .466. `tests/hou/test_hda.py` now fails if any ticked format writes no file, so a disabled or broken writer cannot pass behind the others.
 
@@ -22,9 +22,9 @@ Reading path: section 01 for where things stand, 02 for what is next, then 03 an
 
 05. Players: three on one server — the USD viewer (`viewer/index.html`, OpenUSD in WebAssembly and Hydra), the glTF player (`viewer/players/gltf.html`, three's `GLTFLoader`), and the X3D player (`viewer/players/x3d.html`, X_ITE 16.7.1, MIT).
 
-06. Tests: `npm test` (syntax checks plus the Python suite) passes, and `py -3.12 -m unittest discover -s tests` reports **174 Python tests**. The browser suite is **18 checks** (`tests/browser/smoke.mjs`); it passed on GitHub's `ubuntu-latest` runner and runs on `workflow_dispatch`, not every push. To run it locally, start the server first and install Playwright with Chromium.
+06. Tests: `npm test` (syntax checks plus the Python suite) passes, and `py -3.12 -m unittest discover -s tests` reports **175 Python tests**. The browser suite is **18 checks** (`tests/browser/smoke.mjs`); it passed on GitHub's `ubuntu-latest` runner and runs on `workflow_dispatch`, not every push. To run it locally, start the server first and install Playwright with Chromium.
 
-07. The prose drift found earlier is fixed, and `tests/test_claims.py` guards the classes of it that matter: the README's version, release bullets, the format list, relative links, the card's paths, and now the changelog's shape. The last two checks are structural, because two rolls damaged the file rather than drifting its words: it must open with `# Changelog`, and the `## [x.y.z]` headings must descend. Both were verified by running them against a deliberately broken file. The README no longer states a test count, deliberately: it changed four times in a day.
+07. The prose drift found earlier is fixed, and `tests/test_claims.py` guards the classes of it that matter: the README's version, release bullets, the format list, relative links, the card's paths, and now the changelog's shape. The last three checks are structural, because rolls damaged the file rather than drifting its words: it must open with `# Changelog`, the `## [x.y.z]` headings must descend, and every `## [` and `### ` heading needs a blank line under it. Each was verified by running it against deliberately broken files; the blank-line check also passes a well-formed one, which matters as much. The README no longer states a test count, deliberately: it changed four times in a day.
 
 08. Machine: use `py -3.12` for tests and scripts. It has `usd-core` 26.5 and no numpy, PIL, pygltflib or trimesh, so the writers pack binary themselves and copy image bytes as they are. Hython runs pin `HOUDINI_USER_PREF_DIR=C:/Users/User/OneDrive/Documents/houdini22.0`. Plain `python` is 3.14.2 today, its `python314.dll` is present, and `npm test` ran the full suite through it; the pinned interpreter is still 3.12 because that is what CI tests. The E1 repair task remains on the list.
 

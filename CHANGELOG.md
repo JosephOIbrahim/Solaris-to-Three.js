@@ -4,6 +4,10 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+### Changed
+
+- `plan/wave3-handoff.md` is updated for v0.6.7: the five patches since v0.6.2 and what each changed, the 175-test baseline, and the three changelog shape checks. The on-demand browser dispatch on `d6b3b7a` passed 18 of 18 and is recorded.
+
 ## [0.6.7] - 2026-11-12
 
 This release covers the changelog blank-line check.
