@@ -10,6 +10,9 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 - The blueprint records what is still unverified: Quick Look, the start/middle/end animation probe's blind spot, and what the browser suite proves on CI.
 
 
+- `tests/test_claims.py` fails when the README's version, the current release's notes, the format list, a relative link or the web-export card's paths drift from the code. It caught a real one on arrival: the glTF-animation bullet had been credited to 0.2.0 rather than 0.5.0.
+- The glTF and X3D reports call out animation only when the stage actually moves, naming what moved, instead of firing on a declared time range; a time range with no motion now reports nothing.
+- Prose drift fixed: the web-export card's Formats step now says four live toggles, and the glTF writer's header no longer claims animation is unwritten.
 ## [0.6.1] - 2026-11-12
 
 This release keeps the README's version line in step with the package.

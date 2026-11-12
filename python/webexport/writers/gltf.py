@@ -10,8 +10,8 @@ or JPEG, one camera, KHR_lights_punctual for sphere and distant lights, and EXT_
 for PointInstancers. The seven /WebSettings values travel in `extras`, so the player can read them.
 
 What it does not write, and the profile reports instead: subdivision limit surfaces, geometry
-variants other than the selected one, material variants, area and dome lights, volumes, and
-animation beyond the current time sample.
+variants other than the selected one, area and dome lights, volumes, and any animated attribute
+that is not a transform (node transforms are baked as glTF animations).
 
 validate_glb() re-opens what was written and checks the container structurally; the M7 unit test
 and ExportResult.validated both use it.

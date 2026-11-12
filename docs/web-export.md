@@ -22,8 +22,7 @@ The package sets `WEBEXPORT_ROOT`, puts `python/` on `PYTHONPATH`, and adds `hou
 01. In `/stage`, press Tab and choose **Web Export** under **File IO/Export**.
 02. Wire the last stage of the network into its one input. The asset requires one input, so an unwired node shows an error.
 03. Set **Output Folder**. The default is `$HIP/web_export`.
-04. **Formats** has three live toggles: **USD Folder**, **glTF** and **X3D**, all on by default. Export writes the folder, a `.glb` and a `.x3d` beside it. Each format's report says what it cannot carry: subdivision as a cage, area and dome lights dropped, and for X3D a duplicated copy of the geometry per look. USDZ stays visible and disabled.
-05. Set the **Web Settings** you want. The table below says what each one does.
+04. **Formats** has four live toggles: **USD Folder**, **glTF**, **X3D** and **USDZ**, all on by default. Export writes the folder and the three files beside it, and each format's report says what it cannot carry: subdivision as a cage, area and dome lights dropped, a duplicated copy of the geometry per look in X3D, and Quick Look's limited reading of MaterialX and lights in USDZ.
 
 | Setting | Effect in the viewer |
 |---|---|
