@@ -165,6 +165,37 @@ class RatTexture(unittest.TestCase):
         self.assertFalse(out.exists(), "a blocking report must not create the folder")
 
 
+class FourFormatsOnALopStage(unittest.TestCase):
+    """The shape of a live LOP stage: an anonymous root with a file sublayer, which
+    api._materialized saves to a temporary file before any report is built.
+
+    The glTF and X3D writers read variants by selecting each option and restoring the original.
+    That round trip can leave the *source* root layer dirty; when the USDZ report was built after
+    those writers it saw an unsaved layer and blocked. Every report must be built before the
+    first writer runs, so all four formats go and all four files are written.
+    """
+
+    def test_all_four_formats_report_go_and_write_the_usdz(self):
+        tmp = Path(tempfile.mkdtemp(prefix="webexport_usdz_lop_"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        stage = Usd.Stage.CreateInMemory()
+        stage.GetRootLayer().defaultPrim = "hero"
+        stage.GetRootLayer().subLayerPaths = [str(FIXTURE.resolve())]
+        out = tmp / "out"
+
+        results = api.export(stage, ["usd_folder", "gltf", "x3d", "usdz"], out, jev_on=False)
+        self.assertEqual([r.format for r in results], ["usd_folder", "gltf", "x3d", "usdz"])
+        for result in results:
+            self.assertNotEqual(result.report.verdict, "FIX FIRST", result.report.render_text())
+        by_format = {r.format: r for r in results}
+        self.assertTrue(by_format["usdz"].files)
+        self.assertTrue(by_format["usdz"].validated)
+        for name in ("hero.usda", "hero.glb", "hero.x3d", "hero.usdz"):
+            self.assertTrue((out / name).is_file(), name)
+        archive = Usd.Stage.Open(str(out / "hero.usdz"))
+        self.assertTrue(archive.GetPrimAtPath("/WebSettings"))
+
+
 class Contracts(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="webexport_usdz_contracts_"))
