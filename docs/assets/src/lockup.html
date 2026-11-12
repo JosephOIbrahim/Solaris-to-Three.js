@@ -49,7 +49,7 @@
       white-space: nowrap;
     }
     .mark {
-      --trim: 12px;        /* the empty band under the last scanline, kept out of the line box */
+      --trim: calc(var(--mark) * 1.5 / 16);  /* the empty band under the last scanline, kept out of the line box */
       width: var(--mark);
       height: var(--mark);
       /* the circle's own edge, not the image box, meets the clear space and the gap */
