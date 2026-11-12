@@ -4,11 +4,14 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-12
+
+This release covers the claims test, animation precision and the drift fixes.
+
 ### Added
 
 - The loss report now says exactly what animation was baked: X3D names a scale change it cannot represent instead of silently holding the start pose, and both glTF and X3D report animated points, shader inputs and visibility as `animated_attribute` at the current time sample only.
 - The blueprint records what is still unverified: Quick Look, the start/middle/end animation probe's blind spot, and what the browser suite proves on CI.
-
 
 - `tests/test_claims.py` fails when the README's version, the current release's notes, the format list, a relative link or the web-export card's paths drift from the code. It caught a real one on arrival: the glTF-animation bullet had been credited to 0.2.0 rather than 0.5.0.
 - The glTF and X3D reports call out animation only when the stage actually moves, naming what moved, instead of firing on a declared time range; a time range with no motion now reports nothing.
@@ -20,7 +23,6 @@ This release keeps the README's version line in step with the package.
 ### Fixed
 
 - The README's status line lagged the release (0.5.0 while the package said 0.6.0); it now says 0.6.1 and is checked against `package.json` before a release.
-
 
 ## [0.6.0] - 2026-11-12
 
@@ -34,7 +36,6 @@ This release covers the USDZ toggle and the assess-all-first fix.
 
 - USDZ no longer reports `unsaved_layer` when it runs after another format. `api.export` now builds every format's loss report before any writer runs, so each report describes the stage as it arrived. The HDA test reads the node's verdict parm rather than the first verdict in the text, which had hidden a later format's FIX FIRST.
 
-
 ## [0.5.0] - 2026-11-12
 
 This release covers glTF and X3D animation and USDZ. All four formats now write from one node.
@@ -44,7 +45,6 @@ This release covers glTF and X3D animation and USDZ. All four formats now write 
 - glTF bakes xform animation: a moving node's local-to-world is sampled at every timecode of the stage's range and written as glTF `animations` with one LINEAR sampler per channel (translation, rotation as quaternions, scale), times in seconds and the required accessor min/max. Geometry now sits in prim space with the transform on its node, so a node can move. `fixtures/stage-animated/` holds a cube that turns a full circle over 121 frames, built by `tools/make_animated_stage.py`, and the glTF test checks the channels and the 121-sample accessors. The profile reports animation as a note rather than a loss.
 - X3D bakes xform animation: a moving node's local-to-world is sampled across the stage's range and written as a `TimeSensor`, `OrientationInterpolator`/`PositionInterpolator` nodes and `ROUTE` statements, with the node's static pose taken from the stage start. The profile reports animation as a note, and `validate_x3d()` checks the routes and the key counts.
 - USDZ export (`python/webexport/profiles/usdz.py`, `writers/usdz.py`): `UsdUtils.CreateNewUsdzPackage` packs the USD folder export into one archive, with a profile for what Quick Look reads and does not. `inventory.gather` now reads a packaged layer's inner extension, so the census no longer calls a correct `.usdz` fix-first.
-
 
 ## [0.4.0] - 2026-11-12
 
@@ -142,7 +142,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.2
 [0.6.1]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.1
 [0.6.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.0
 [0.5.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.5.0
