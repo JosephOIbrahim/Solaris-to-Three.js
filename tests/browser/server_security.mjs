@@ -1,10 +1,12 @@
 // HTTP security and header contract tests for server/serve.mjs.
 // Spawns server/serve.mjs on a dedicated ephemeral port, runs checks, and shuts it down.
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 
 const SERVER = fileURLToPath(new URL("../../server/serve.mjs", import.meta.url));
+const THREE_MOD = fileURLToPath(new URL("../../node_modules/three/build/three.module.js", import.meta.url));
 const PORT = Number(process.env.TEST_PORT || 5197);
 
 function rawRequest(path, { method = "GET", host = `127.0.0.1:${PORT}` } = {}) {
@@ -80,8 +82,12 @@ try {
       (travBackslash.status === 403 || travBackslash.status === 404) && !travBackslash.body.includes('"solaris-to-three"')],
     ["directory path /fixtures/stage returns 404 (not 500)", travDir.status === 404],
     ["unlisted /vendor/ package returns 403", vendorBlocked.status === 403],
-    ["allowed /vendor/three caches public max-age=3600 (T10)",
-      vendorOk.status === 200 && vendorOk.headers["cache-control"] === "public, max-age=3600"],
+    [existsSync(THREE_MOD)
+      ? "allowed /vendor/three caches public max-age=3600 (T10)"
+      : "allowed /vendor/three passes allowlist (404 without node_modules)",
+      existsSync(THREE_MOD)
+        ? (vendorOk.status === 200 && vendorOk.headers["cache-control"] === "public, max-age=3600")
+        : vendorOk.status === 404],
     ["MIME types for .x3d, .glb, .hdr match spec",
       x3d.status === 200 && x3d.headers["content-type"] === "model/x3d+xml"
       && glb.status === 200 && glb.headers["content-type"] === "model/gltf-binary"
