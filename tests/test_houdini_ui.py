@@ -15,8 +15,11 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
+sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "houdini" / "scripts" / "python"))
 
+import doctor  # noqa: E402
+import package_release  # noqa: E402
 from webexport import panel  # noqa: E402
 from webexport.report import LossItem, LossReport  # noqa: E402
 
@@ -28,6 +31,7 @@ except ImportError:
 
 SHELF_PATH = ROOT / "houdini" / "toolbar" / "webexport.shelf"
 PYPANEL_PATH = ROOT / "houdini" / "python_panels" / "webexport.pypanel"
+MENU_PATH = ROOT / "houdini" / "MainMenuCommon.xml"
 ICON_PATH = ROOT / "houdini" / "config" / "Icons" / "webexport.svg"
 CLEAN_FIXTURE = ROOT / "fixtures" / "stage" / "shot.usda"
 DIRTY_FIXTURE = ROOT / "fixtures" / "stage-dirty" / "dirty.usda"
@@ -99,6 +103,52 @@ class HoudiniAssetManifestTests(unittest.TestCase):
         ):
             self.assertIn(hook, code)
         compile(code, "webexport.pypanel", "exec")
+
+    def test_main_menu_xml_structure_and_compilable_scripts(self):
+        self.assertTrue(MENU_PATH.is_file(), f"missing menu: {MENU_PATH}")
+        root = ET.parse(MENU_PATH).getroot()
+        self.assertEqual(root.tag, "mainMenu")
+        submenu = root.find("./menuBar/subMenu[@id='webexport_menu']")
+        self.assertIsNotNone(submenu)
+        self.assertEqual(submenu.findtext("label"), "Web Export")
+        items = submenu.findall("scriptItem")
+        self.assertGreaterEqual(len(items), 6)
+        for item in items:
+            code = (item.findtext("scriptCode") or "").strip()
+            self.assertIn("webexport_shelf", code)
+            compile(code, f"MainMenuCommon.xml:{item.get('id')}", "exec")
+
+
+class DoctorAndPackagerTests(unittest.TestCase):
+    def test_doctor_checks_repo_assets_and_reports_uninstalled_prefs(self):
+        import shutil
+        import tempfile
+        tmp = Path(tempfile.mkdtemp(prefix="webexport_doctor_"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        rep = doctor.run_checks(root=ROOT, prefs_dir=tmp)
+        by_name = {c["name"]: c for c in rep["checks"]}
+        self.assertTrue(by_name["houdini_assets"]["ok"], by_name["houdini_assets"])
+        self.assertFalse(by_name["houdini_package"]["ok"])
+        self.assertIn("WEB EXPORT PREFLIGHT", doctor.render_report(rep))
+
+    def test_package_release_builds_deterministic_mit_bundle_without_needle(self):
+        import shutil
+        import tempfile
+        import zipfile
+        tmp = Path(tempfile.mkdtemp(prefix="webexport_pkg_"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        z1, sums1, d1 = package_release.build_bundle(root=ROOT, out_dir=tmp / "a")
+        z2, _sums2, d2 = package_release.build_bundle(root=ROOT, out_dir=tmp / "b")
+        self.assertEqual(d1, d2, "release zip must be deterministic across builds")
+        self.assertIn(d1, sums1.read_text(encoding="utf-8"))
+        with zipfile.ZipFile(z1) as zf:
+            names = zf.namelist()
+        self.assertTrue(any(n.endswith("/houdini/otls/web_export.hda") for n in names))
+        self.assertTrue(any(n.endswith("/houdini/toolbar/webexport.shelf") for n in names))
+        self.assertTrue(any(n.endswith("/houdini/python_panels/webexport.pypanel") for n in names))
+        self.assertTrue(any(n.endswith("/houdini/MainMenuCommon.xml") for n in names))
+        self.assertFalse(any("node_modules/" in n or "@needle-tools" in n for n in names),
+                         "release bundle must never contain node_modules or PolyForm @needle-tools packages")
 
 
 class PanelModelTests(unittest.TestCase):

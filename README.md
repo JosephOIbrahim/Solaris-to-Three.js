@@ -12,7 +12,7 @@ Reading path: read Status to Quickstart first, seven sections and about four min
 
 ### <img src="docs/assets/swatch-ochre.svg" width="11" height="11" alt=""> Status
 
-Version 0.7.0. One LOP node, `mythandlogic::web_export::1.0`, writes four formats from the end of a Solaris network: USD Folder, glTF (`.glb`), X3D (`.x3d`) and USDZ (`.usdz`). The USD folder opens in the viewer through OpenUSD in WebAssembly, and the `.glb` and `.x3d` each have their own player. It has run on Joe's RTX 4090 under Windows (T02, see [CHANGELOG 0.1.2](CHANGELOG.md)). Checking a real Karma export (T03) is still open, and Quick Look itself is untested here. The Needle runtime is PolyForm Noncommercial, so it is for **local evaluation only**.
+Version 1.0.0. One LOP node, `mythandlogic::web_export::1.0`, launches straight from Houdini 22 via the **Web Export** main menu, custom shelf, and PySide6 Python Panel, writing four formats from the end of a Solaris network: USD Folder, glTF (`.glb`), X3D (`.x3d`) and USDZ (`.usdz`). The core exporter, Houdini 22 integration, server, standalone `.glb` and `.x3d` players, and `USDLoader` (`?route=js`) are **MIT**; the optional Needle Hydra WASM route (`@needle-tools/usd`, installed via `npm ci` and never bundled in release zips) is **PolyForm Noncommercial** for local evaluation only. Run `python scripts/install_package.py` and `python scripts/doctor.py` to install and verify Houdini 22 launch readiness. Checking a real Karma export (T03) and Apple Quick Look remain open verification items.
 
 ---
 

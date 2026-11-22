@@ -11,16 +11,18 @@ Run these from the checkout you will keep, not from a worktree; the installed pa
 1. `python scripts/install_package.py --dry-run` shows the target path and the JSON, and writes nothing.
 2. `python scripts/install_package.py` writes `<prefs>/packages/webexport.json`.
 3. `python scripts/install_package.py --verify` reads it back and exits 0 when it points at this repo.
-4. Restart Houdini.
+4. `python scripts/doctor.py` runs the full Houdini 22 launch preflight check (Python, OpenUSD, Node.js 22+, HDA/shelf/panel/menu/icon assets, installed package, viewer dependencies, preview port).
+5. Restart Houdini 22.
 
 `<prefs>` is `--prefs-dir` if given, else `$HOUDINI_USER_PREF_DIR`, else `Documents/houdini22.0`, the real Documents folder whether OneDrive redirects it or not. On Windows with more than one Python installed, `py -3.12 scripts/install_package.py` names the interpreter.
 
-The package sets `WEBEXPORT_ROOT`, puts `python/` on `PYTHONPATH`, and adds `houdini/` to `HOUDINI_PATH`, so `import webexport` works and Houdini 22 automatically discovers the HDA, the **Web Export** custom shelf (`houdini/toolbar/webexport.shelf`), and the **Web Export** Python Panel (`houdini/python_panels/webexport.pypanel`). The HDA is committed in the repo; you do not build it to use it.
+The package sets `WEBEXPORT_ROOT`, puts `python/` on `PYTHONPATH`, and adds `houdini/` to `HOUDINI_PATH`, so `import webexport` works and Houdini 22 automatically discovers the HDA, the **Web Export** top-level main menu (`houdini/MainMenuCommon.xml`), the **Web Export** custom shelf (`houdini/toolbar/webexport.shelf`), and the **Web Export** Python Panel (`houdini/python_panels/webexport.pypanel`). The HDA is committed in the repo; you do not build it to use it.
 
-## Custom Shelf and Python Panel (Houdini 22)
+## Main Menu, Custom Shelf and Python Panel (Houdini 22)
 
+- **Web Export main menu (`Web Export`):** Appears directly in Houdini 22's top menu bar (before **Help**) with one-click access to **Add Web Export LOP**, **Open Report Panel**, **Check Stage**, **Export Web Formats**, **Preview in Browser**, and **Run Preflight Check...**.
 - **Web Export shelf (`Web Export`):** Enable it from any Shelf Set's `+` menu. It adds five Solaris tools: **Add Web Export** (creates and wires `mythandlogic::web_export::1.0` below the selected or display LOP), **Report Panel**, **Check Stage**, **Export Web**, and **Preview Viewer**.
-- **Web Export Python Panel (`Web Export`):** Open it from the shelf's **Report Panel** button, from any pane tab's `+ -> New Pane Tab Type -> Web Export`, or from the Python Panel toolbar dropdown. It renders side-by-side loss report cards and a feature comparison matrix across **USD Folder**, **glTF**, **X3D**, and **USDZ**, syncs bidirectionally with a selected Web Export LOP (or inspects any Solaris LOP read-only), and lets you double-click any USD prim path in the findings tree to select it in the Scene Graph.
+- **Web Export Python Panel (`Web Export`):** Open it from the main menu, from the shelf's **Report Panel** button, from any pane tab's `+ -> New Pane Tab Type -> Web Export`, or from the Python Panel toolbar dropdown. It renders side-by-side loss report cards and a feature comparison matrix across **USD Folder**, **glTF**, **X3D**, and **USDZ**, syncs bidirectionally with a selected Web Export LOP (or inspects any Solaris LOP read-only), and lets you double-click any USD prim path in the findings tree to select it in the Scene Graph.
 
 ## Add the node
 
@@ -110,20 +112,23 @@ The script sets `WEBEXPORT_NO_BROWSER=1`, so no browser can open. Exit codes: 0 
 
 ## Proven
 
-On hython 22.0.400, 22.0.492 and 22.0.466, with `fixtures/stage/shot.usda`, Check says **GO** and Export writes all four formats (`hero.usda` + `external/`, `hero.glb`, `hero.x3d`, `hero.usdz`).
+On hython 22.0.400, 22.0.466 and 22.0.504, with `fixtures/stage/shot.usda`, Check says **GO** / **GO, WITH NOTES** and Export writes all four formats (`hero.usda` + `external/`, `hero.glb`, `hero.x3d`, `hero.usdz`).
 
 ## Where it lives
 
 | Path | Holds |
 |---|---|
 | `houdini/otls/web_export.hda` | The asset, `mythandlogic::web_export::1.0` |
+| `houdini/MainMenuCommon.xml` | The Houdini 22 top-level **Web Export** menu |
 | `houdini/toolbar/webexport.shelf` | The Houdini 22 **Web Export** custom shelf (5 Solaris tools) |
-| `houdini/scripts/python/webexport_shelf.py` | Thin Python callbacks for the custom shelf |
+| `houdini/scripts/python/webexport_shelf.py` | Thin Python callbacks for the main menu and custom shelf |
 | `houdini/python_panels/webexport.pypanel` | The Houdini 22 **Web Export** Python Panel interface definition |
-| `houdini/config/Icons/webexport.svg` | Custom house-mark SVG icon for the shelf and Python Panel |
+| `houdini/config/Icons/webexport.svg` | Custom house-mark SVG icon for the HDA, shelf, and Python Panel |
 | `python/webexport/panel/` | PySide6 side-by-side loss report panel (`widget.py`) and pure-Python view-model (`model.py`) |
 | `python/webexport/hou_node.py` | The three button callbacks and the badge |
-| `python/webexport/` | The pure `pxr` core: report, inventory, USD-folder profile and writer |
+| `python/webexport/` | The pure `pxr` core: report, inventory, profiles and writers |
 | `scripts/build_hda.py` | The source of truth for the node; rebuilds the HDA |
 | `scripts/install_package.py` | Installs the package into the Houdini prefs |
-| `tests/hou/test_hda.py` | The batch path and the three-build proof |
+| `scripts/doctor.py` | Preflight diagnostics for Houdini 22 launch readiness |
+| `scripts/package_release.py` | Deterministic studio release archive + `SHA256SUMS.txt` builder |
+| `tests/hou/test_hda.py` | The batch path and the multi-build Houdini 22 proof |

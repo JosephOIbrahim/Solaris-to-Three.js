@@ -227,3 +227,40 @@ def preview_viewer(kwargs: dict[str, Any] | None = None):
     hou_node.on_preview({"node": _RootShim()})
     _status("Web Export Preview: opened viewer server.")
     return None
+
+
+def run_preflight(kwargs: dict[str, Any] | None = None):
+    """Run scripts/doctor.py checks from inside Houdini 22 and show a clear summary dialog."""
+    import os
+    from pathlib import Path
+    import sys
+
+    root = hou.getenv("WEBEXPORT_ROOT")
+    if not root:
+        root = str(Path(__file__).resolve().parents[3])
+    scripts_dir = str(Path(root) / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+
+    import doctor
+
+    report = doctor.run_checks(Path(root))
+    summary = doctor.render_report(report)
+    ui = getattr(hou, "ui", None)
+    if ui is not None and hasattr(ui, "displayMessage"):
+        sev = (getattr(hou.severityType, "Message", None)
+               if report["ok"] else getattr(hou.severityType, "Warning", None))
+        try:
+            ui.displayMessage(
+                "Web Export Preflight Check: " + ("READY" if report["ok"] else "NEEDS ATTENTION"),
+                details=summary,
+                details_expanded=True,
+                severity=sev,
+                title="Web Export — Houdini 22 Preflight",
+            )
+        except TypeError:
+            ui.displayMessage(summary, title="Web Export — Houdini 22 Preflight")
+    else:
+        print(summary)
+    return report
+

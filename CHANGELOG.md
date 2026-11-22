@@ -4,6 +4,22 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-22
+
+First production release for launching **Solaris-to-Three.js** directly from Houdini 22. All core export modules, Houdini 22 integration (HDA, top-level menu, custom shelf, PySide6 Python Panel), HTTP server, glTF player, X3D player, and `USDLoader` (`?route=js`) ship under MIT; the optional Needle Hydra WASM route (`@needle-tools/usd`, installed via `npm ci` and excluded from release zips) remains PolyForm Noncommercial for local evaluation only.
+
+### Added
+
+- Top-level Houdini 22 **Web Export** menu (`houdini/MainMenuCommon.xml`, inserted before **Help**) providing one-click access to Add Web Export LOP, Open Report Panel, Check Stage, Export Web Formats, Preview in Browser, and Run Preflight Check.
+- `scripts/doctor.py` (`npm run doctor`) preflight diagnostics CLI and in-Houdini `webexport_shelf.run_preflight()` verifying Python, OpenUSD (`pxr`), Node.js 22+, Houdini 22 assets (HDA, shelf, panel, menu, icon), package installation, viewer dependencies, and preview port availability.
+- `scripts/package_release.py` (`npm run package:release`) deterministic studio deployment bundler producing `solaris-to-three-v1.0.0-houdini22.zip` and `SHA256SUMS.txt` while strictly excluding `node_modules/` and `@needle-tools/*`.
+- `tools/release.py --asset` support for attaching verified release archives and SHA256 manifests directly to GitHub Releases.
+
+### Changed
+
+- Rebuilt `houdini/otls/web_export.hda` under Houdini 22.0.400 with the house `webexport` SVG icon and verified `tests/hou/test_hda.py` across Houdini 22.0.400, 22.0.466, and 22.0.504.
+- Clarified the MIT vs. PolyForm Noncommercial licensing boundary in `README.md` and expanded the Houdini 22 installation and preflight documentation in `docs/web-export.md`.
+
 ## [0.7.0] - 2026-11-21
 
 This release delivers the first-principles hardening across the pure-`pxr` core, format writers, browser runtime, HTTP server, Houdini adapter, and CI, plus a Houdini 22 custom shelf and PySide6 Python Panel.
@@ -231,7 +247,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v1.0.0
 [0.7.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.7.0
 [0.6.10]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.10
 [0.6.9]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.9

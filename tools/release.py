@@ -57,6 +57,7 @@ def main():
     sys.stdout.reconfigure(errors="replace")  # a Windows console may not take every character in the notes
     ap = argparse.ArgumentParser(description="Create the GitHub release for the version in package.json.")
     ap.add_argument("--dry-run", action="store_true", help="check and print the notes; create nothing")
+    ap.add_argument("--asset", action="append", default=[], help="release artifact path to attach (repeatable)")
     a = ap.parse_args()
 
     version = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
@@ -64,6 +65,9 @@ def main():
     prerelease = version.startswith("0.")
     notes = notes_for(version, (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"))
     problems = checks(tag, head)
+    for asset in a.asset:
+        if not Path(asset).is_file():
+            problems.append(f"release asset not found: {asset}")
     if not notes:
         problems.append(f"CHANGELOG.md has no notes under '## [{version}]'")
     elif not any(line.startswith("- ") for line in notes.splitlines()):
@@ -79,12 +83,17 @@ def main():
         return 1
     print("  checks pass\n")
     print(notes)
+    if a.asset:
+        print("\nAssets:")
+        for asset in a.asset:
+            print(f"  + {asset}")
     if a.dry_run:
         print("\n(dry run: nothing created)")
         return 0
     cmd = ["gh", "release", "create", tag, "--repo", REPO, "--target", head, "--title", tag, "--notes-file", "-"]
     if prerelease:
         cmd.append("--prerelease")
+    cmd.extend(a.asset)
     out = subprocess.run(cmd, cwd=ROOT, input=notes, capture_output=True, text=True, encoding="utf-8")
     print(out.stdout.strip() or out.stderr.strip())
     return out.returncode

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Web Export top-level menu for Houdini 22 Solaris (Solaris-to-Three.js).
+     Discovered automatically via packages/webexport.json (hpath -> houdini/).
+     All logic lives in houdini/scripts/python/webexport_shelf.py. -->
+<mainMenu>
+  <menuBar>
+    <subMenu id="webexport_menu">
+      <label>Web Export</label>
+      <insertBefore>help_menu</insertBefore>
+
+      <scriptItem id="webexport.add_node">
+        <label>Add Web Export LOP</label>
+        <scriptCode><![CDATA[import webexport_shelf
+webexport_shelf.add_web_export_node(kwargs)]]></scriptCode>
+      </scriptItem>
+
+      <scriptItem id="webexport.open_panel">
+        <label>Open Report Panel</label>
+        <scriptCode><![CDATA[import webexport_shelf
+webexport_shelf.open_report_panel(kwargs)]]></scriptCode>
+      </scriptItem>
+
+      <separatorItem id="webexport_sep_1"/>
+
+      <scriptItem id="webexport.check_stage">
+        <label>Check Stage (Read-Only)</label>
+        <scriptCode><![CDATA[import webexport_shelf
+webexport_shelf.check_stage(kwargs)]]></scriptCode>
+      </scriptItem>
+
+      <scriptItem id="webexport.export_stage">
+        <label>Export Web Formats</label>
+        <scriptCode><![CDATA[import webexport_shelf
+webexport_shelf.export_stage(kwargs)]]></scriptCode>
+      </scriptItem>
+
+      <scriptItem id="webexport.preview_viewer">
+        <label>Preview in Browser</label>
+        <scriptCode><![CDATA[import webexport_shelf
+webexport_shelf.preview_viewer(kwargs)]]></scriptCode>
+      </scriptItem>
+
+      <separatorItem id="webexport_sep_2"/>
+
+      <scriptItem id="webexport.preflight">
+        <label>Run Preflight Check...</label>
+        <scriptCode><![CDATA[import webexport_shelf
+webexport_shelf.run_preflight(kwargs)]]></scriptCode>
+      </scriptItem>
+    </subMenu>
+  </menuBar>
+</mainMenu>

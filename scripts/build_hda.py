@@ -149,6 +149,7 @@ def build(out_path, keep_open=False):
     definition.enableCreateBackups(False)
 
     definition.setParmTemplateGroup(parm_group(), rename_conflicting_parms=False, create_backup=False)
+    definition.setIcon("webexport")
     with open(SHELF, encoding="utf-8") as f:
         definition.addSection("Tools.shelf", f.read())
     definition.addSection("MessageNodes", BADGE)

@@ -1,14 +1,14 @@
-# Handoff after v0.7.0
+# Handoff after v1.0.0
 
-Start a fresh session in `E:\Myth_and_Logic\Software\Solaris-to-Three.js` with this note, `plan/web-export-blueprint.md` and `plan/wave8-tasks.json`. v0.7.0 is the current release: one LOP node writes four formats, with first-principles hardening across the core writers, viewer runtime, HTTP server, Houdini adapter, and CI, plus a Houdini 22 custom shelf and PySide6 Python Panel.
+Start a fresh session in `E:\Myth_and_Logic\Software\Solaris-to-Three.js` with this note, `plan/web-export-blueprint.md` and `plan/wave8-tasks.json`. v1.0.0 is the production release for Houdini 22: one LOP node writes four formats, with a top-level menu, custom shelf, PySide6 Python Panel, preflight doctor (`scripts/doctor.py`), and deterministic release bundler (`scripts/package_release.py`).
 
 Reading path: section 01 for where things stand, 02 for what is next, then 03 and 04 before touching anything. About five minutes.
 
 ---
 
-### 01. Where things stand (2026-11-21)
+### 01. Where things stand (2026-11-22)
 
-01. `package.json`, `README.md` and `CHANGELOG.md` are at **v0.7.0** on `main`. CI runs Python unit tests (with `usd-core==26.5` and `lxml`), JS syntax checks, and HTTP server security checks (`npm run test:server`). `tests/test_claims.py` fails when the README version, the current release's bullets, the format list, a relative link, the card's paths, or the changelog's shape drift from the code.
+01. `package.json`, `README.md` and `CHANGELOG.md` are at **v1.0.0** on `main`. CI runs Python unit tests (with `usd-core==26.5` and `lxml`), JS syntax checks, and HTTP server security checks (`npm run test:server`). `tests/test_claims.py` fails when the README version, the current release's bullets, the format list, a relative link, the card's paths, or the changelog's shape drift from the code.
 
 02. One LOP node, `mythandlogic::web_export::1.0`, installs from `py -3.12 scripts/install_package.py` and writes four formats from one Export: USD Folder, glTF (`.glb`), X3D (`.x3d`) and USDZ (`.usdz`). `api.FORMATS` is `("usd_folder", "gltf", "x3d", "usdz")`; splats is the planned fifth and is not written. With all four toggles on, the fixture gives GO and Export writes all four on hython 22.0.400, .492 and .466. `tests/hou/test_hda.py` now fails if any ticked format writes no file, so a disabled or broken writer cannot pass behind the others.
 
