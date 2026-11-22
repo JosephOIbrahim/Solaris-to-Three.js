@@ -15,7 +15,12 @@ Run these from the checkout you will keep, not from a worktree; the installed pa
 
 `<prefs>` is `--prefs-dir` if given, else `$HOUDINI_USER_PREF_DIR`, else `Documents/houdini22.0`, the real Documents folder whether OneDrive redirects it or not. On Windows with more than one Python installed, `py -3.12 scripts/install_package.py` names the interpreter.
 
-The package sets `WEBEXPORT_ROOT`, puts `python/` on `PYTHONPATH`, and adds `houdini/` to `HOUDINI_PATH`, so `import webexport` works and the HDA is found. The HDA is committed in the repo; you do not build it to use it.
+The package sets `WEBEXPORT_ROOT`, puts `python/` on `PYTHONPATH`, and adds `houdini/` to `HOUDINI_PATH`, so `import webexport` works and Houdini 22 automatically discovers the HDA, the **Web Export** custom shelf (`houdini/toolbar/webexport.shelf`), and the **Web Export** Python Panel (`houdini/python_panels/webexport.pypanel`). The HDA is committed in the repo; you do not build it to use it.
+
+## Custom Shelf and Python Panel (Houdini 22)
+
+- **Web Export shelf (`Web Export`):** Enable it from any Shelf Set's `+` menu. It adds five Solaris tools: **Add Web Export** (creates and wires `mythandlogic::web_export::1.0` below the selected or display LOP), **Report Panel**, **Check Stage**, **Export Web**, and **Preview Viewer**.
+- **Web Export Python Panel (`Web Export`):** Open it from the shelf's **Report Panel** button, from any pane tab's `+ -> New Pane Tab Type -> Web Export`, or from the Python Panel toolbar dropdown. It renders side-by-side loss report cards and a feature comparison matrix across **USD Folder**, **glTF**, **X3D**, and **USDZ**, syncs bidirectionally with a selected Web Export LOP (or inspects any Solaris LOP read-only), and lets you double-click any USD prim path in the findings tree to select it in the Scene Graph.
 
 ## Add the node
 
@@ -93,25 +98,30 @@ hython -B tests/hou/test_hda.py --expect "GO" --json out.json
 | `--expect "GO"` | Fails the run unless the last report ends in that verdict |
 | `--json out.json` | Saves the full result, including the report text and file list |
 
-The script sets `WEBEXPORT_NO_BROWSER=1`, so no browser can open. Exit codes: 0 pass, 2 nothing connected, 3 files written without a verdict, 4 the verdict was not the expected one. Use it to gate a batch check.
+The script sets `WEBEXPORT_NO_BROWSER=1`, so no browser can open. Exit codes: 0 pass, 2 nothing connected, 3 files written without a verdict, 4 the verdict was not the expected one, 5 a ticked format wrote no file, 6 the badge raised an error on a non-blocking export, 7 a FIX FIRST export wrote files, 8 a format toggle was missing or off, 9 the verdict parameter disagreed with the report. Use it to gate a batch check.
 
 ## Traps
 
 - **The LOP stage lives in memory.** Its root layer is anonymous, so the node flattens the layer stack, stages it to a temporary file, strips `/HoudiniLayerInfo`, and hands that file to the USD-folder writer. What it exports is what the node cooked, not the `.hip` on disk. A path relative to the anonymous root has no folder to resolve against; the report names it as missing.
 - **`../` paths, `.rat`/`.tx` and UDIM textures can still block.** The writer copies a resolvable file from outside the export folder into `external/` and reports it as a note, but a `../` path that resolves to nothing is a block, and no texture is converted or baked.
-- **Preview needs Node.** It uses `node.exe` beside Houdini when one exists, else `node` on `PATH`. Without either, the button cannot start the server.
-- **Preview opens the viewer, not necessarily your export.** The server serves `/`, `fixtures/`, `stages/` and `vendor/`. An export outside `stages/` gets a note saying there is no preview link. To see it at the server root, export under `stages/<name>/` or copy the folder there.
+- **Preview needs Node.** It uses `node.exe` beside Houdini when one exists, else `node` on `PATH`. Without either, the button reports the missing runtime instead of crashing.
+- **Preview opens your export when it lives under `stages/`.** The server serves `/`, `fixtures/`, `stages/` and `vendor/`. Exports under `stages/<name>/` deep-link straight to `?stage=/stages/...`; exports outside `stages/` get a note saying there is no preview link and open the viewer root.
 - **The HDA is built, not hand-edited.** Rebuild it with `hython -B scripts/build_hda.py` under Houdini 22.0.400, the oldest supported build.
 
 ## Proven
 
-On hython 22.0.400, 22.0.492 and 22.0.466, with `fixtures/stage/shot.usda`, Check says **GO** and Export writes `hero.usda`, `external/hero/asset.usda` and `external/env/sky.hdr`.
+On hython 22.0.400, 22.0.492 and 22.0.466, with `fixtures/stage/shot.usda`, Check says **GO** and Export writes all four formats (`hero.usda` + `external/`, `hero.glb`, `hero.x3d`, `hero.usdz`).
 
 ## Where it lives
 
 | Path | Holds |
 |---|---|
 | `houdini/otls/web_export.hda` | The asset, `mythandlogic::web_export::1.0` |
+| `houdini/toolbar/webexport.shelf` | The Houdini 22 **Web Export** custom shelf (5 Solaris tools) |
+| `houdini/scripts/python/webexport_shelf.py` | Thin Python callbacks for the custom shelf |
+| `houdini/python_panels/webexport.pypanel` | The Houdini 22 **Web Export** Python Panel interface definition |
+| `houdini/config/Icons/webexport.svg` | Custom house-mark SVG icon for the shelf and Python Panel |
+| `python/webexport/panel/` | PySide6 side-by-side loss report panel (`widget.py`) and pure-Python view-model (`model.py`) |
 | `python/webexport/hou_node.py` | The three button callbacks and the badge |
 | `python/webexport/` | The pure `pxr` core: report, inventory, USD-folder profile and writer |
 | `scripts/build_hda.py` | The source of truth for the node; rebuilds the HDA |

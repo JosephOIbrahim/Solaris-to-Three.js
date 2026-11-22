@@ -15,6 +15,14 @@ URL = os.environ.get("TYPESAFE_URL", "https://api.typesafe.ai/v1/systemone")
 MODEL = os.environ.get("TYPESAFE_MODEL", "jev-latest")
 
 
+def answer_for(answers, qid):
+    """One answer dict from a Jev reply, or None when missing or malformed."""
+    if not isinstance(answers, dict):
+        return None
+    item = answers.get(qid)
+    return item if isinstance(item, dict) else None
+
+
 def ask(questions, state, timeout=30):
     key = os.environ.get("TYPESAFE_API_KEY")
     if not questions:
@@ -27,7 +35,10 @@ def ask(questions, state, timeout=30):
     for attempt in range(3):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
-                return json.load(r)["answers"], f"Jev {MODEL}"
+                payload = json.load(r)
+            if not isinstance(payload, dict) or not isinstance(payload.get("answers"), dict):
+                return None, "Jev unavailable (malformed reply)"
+            return payload["answers"], f"Jev {MODEL}"
         except urllib.error.HTTPError as e:
             e.close()  # release the connection; Python 3.14 warns about an unclosed error
             if e.code in (429, 529) and attempt < 2:

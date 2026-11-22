@@ -14,7 +14,9 @@ its root layer; ExportResult.validated is that answer, and a failure is reported
 """
 from __future__ import annotations
 
+import os
 import shutil
+import tempfile
 from pathlib import Path
 
 from pxr import Usd, UsdUtils
@@ -40,8 +42,12 @@ def validate_usdz(path: str | Path) -> tuple[bool, list[str]]:
     if not stage:
         return False, [f"{entry.name} does not open"]
     problems = []
+    comp_errors = [str(e) for e in getattr(stage, "GetCompositionErrors", lambda: [])()]
+    if comp_errors:
+        problems.append(f"composition errors inside {entry.name}: {comp_errors[0]}")
     prim = stage.GetPrimAtPath(SETTINGS_PATH)
-    if not (prim and prim.GetTypeName() == "Scope" and stage.GetRootLayer().GetPrimAtPath(SETTINGS_PATH)):
+    if not (prim and prim.IsValid() and prim.IsActive() and prim.GetTypeName() == "Scope"
+            and stage.GetRootLayer().GetPrimAtPath(SETTINGS_PATH)):
         problems.append(f"{SETTINGS_PATH} is not a Scope in the archive's root layer")
     return not problems, problems
 
@@ -94,9 +100,9 @@ class UsdzWriter:
             return ExportResult(FORMAT, entry, [], 0, self.report, False)  # writes nothing, not even the folder
 
         folder_report = self._folder_report(stage, inv)
-        staging = out_dir / STAGING
-        if staging.exists():  # a previous run's staging folder is this writer's to replace
-            shutil.rmtree(staging)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        staging = Path(tempfile.mkdtemp(prefix=STAGING + "_", dir=out_dir))
+        tmp_archive = staging / f".tmp_{entry.name}"
         try:
             folder = UsdFolderWriter(report=folder_report, plan=self.plan, root=self.root).write(
                 stage, inv, staging, settings)
@@ -105,15 +111,11 @@ class UsdzWriter:
                 report = LossReport.from_items(FORMAT, list(self.report.items) + extra,
                                                jev_note=self.report.jev_note)
                 return ExportResult(FORMAT, entry, [], 0, report, False)
-            try:
-                entry.unlink(missing_ok=True)  # replace any earlier archive in one step
-                packed = UsdUtils.CreateNewUsdzPackage(str(folder.entry_file), str(entry))
-                if not packed:
-                    raise RuntimeError(f"UsdUtils.CreateNewUsdzPackage could not pack "
-                                       f"{folder.entry_file} into {entry}")
-            except Exception:
-                entry.unlink(missing_ok=True)  # never leave a half-written archive behind
-                raise
+            packed = UsdUtils.CreateNewUsdzPackage(str(folder.entry_file), str(tmp_archive))
+            if not packed or not tmp_archive.is_file():
+                raise RuntimeError(f"UsdUtils.CreateNewUsdzPackage could not pack "
+                                   f"{folder.entry_file} into {entry}")
+            os.replace(tmp_archive, entry)
         finally:
             shutil.rmtree(staging, ignore_errors=True)
 

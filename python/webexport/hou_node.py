@@ -15,6 +15,8 @@ The in-chain badge reads three hidden parameters this module writes: `check_verd
 from __future__ import annotations
 
 import os
+from pathlib import Path
+import shutil
 import socket
 import subprocess
 import sys
@@ -47,12 +49,17 @@ def incoming_stage(node):
 def web_settings(node):
     """The seven /WebSettings values, as the core's WebSettings."""
     from webexport.settings import WebSettings
-    hub = node.parm("web_hudvs")
-    raw = hub.unexpandedString() if hub else ""
+    limit_parm = node.parm("web_hudvs_limit")
+    if limit_parm is not None and not limit_parm.eval():
+        hud_sets = None
+    else:
+        hub = node.parm("web_hudvs")
+        raw = hub.evalAsString() if hub else ""
+        hud_sets = [s.strip() for s in raw.replace(",", " ").split()] or None
     return WebSettings(
         title=(node.parm("web_title").evalAsString() or None) if node.parm("web_title") else None,
         camera=(node.parm("web_camera").evalAsString() or None) if node.parm("web_camera") else None,
-        hudVariantSets=[s.strip() for s in raw.replace(",", " ").split()] or None,
+        hudVariantSets=hud_sets,
         showProxy=bool(node.parm("web_showproxy").eval()) if node.parm("web_showproxy") else False,
         backgroundBlur=float(node.parm("web_bgblur").eval()) if node.parm("web_bgblur") else 0.35,
         exposureOffset=float(node.parm("web_exposure").eval()) if node.parm("web_exposure") else 0.0,
@@ -100,6 +107,24 @@ def _refresh_badge(node):
         pass  # the badge failing the cook with FIX FIRST is the point
 
 
+def _out_dir(node) -> str:
+    """Resolved export directory. evalAsString() already expands Houdini variables."""
+    parm = node.parm("outdir")
+    if parm is not None:
+        return parm.evalAsString()
+    return hou.text.expandString("$HIP/web_export")
+
+
+def _publish_error(node, action: str, exc: Exception):
+    """Record an unexpected failure loudly on the node so a stale GO verdict never remains."""
+    msg = f"Error: {exc}"
+    _put(node, "report", f"{action}: {msg}")
+    _put(node, "check_verdict", VERDICT_CODE["FIX FIRST"])
+    _put(node, "check_message", msg)
+    _put(node, "check_enable", 1)
+    _refresh_badge(node)
+
+
 def on_check(kwargs):
     """The report only. This function never writes a file."""
     from webexport import api
@@ -108,7 +133,12 @@ def on_check(kwargs):
     if stage is None:
         publish(node, [], "Check: nothing is connected to the input.")
         return
-    publish(node, api.check(stage, formats_for(node)))
+    try:
+        reports = api.check(stage, formats_for(node))
+    except Exception as exc:
+        _publish_error(node, "Check", exc)
+        return
+    publish(node, reports)
     _refresh_badge(node)
 
 
@@ -120,9 +150,12 @@ def on_export(kwargs):
     if stage is None:
         publish(node, [], "Export: nothing is connected to the input.")
         return
-    out_dir = node.parm("outdir").evalAsString() if node.parm("outdir") else "$HIP/web_export"
-    out_dir = hou.text.expandString(out_dir)
-    results = api.export(stage, formats_for(node), out_dir, web_settings(node))
+    out_dir = _out_dir(node)
+    try:
+        results = api.export(stage, formats_for(node), out_dir, web_settings(node))
+    except Exception as exc:
+        _publish_error(node, "Export", exc)
+        return
     wrote = [r for r in results if r.files]
     headline = (f"Export: wrote {sum(len(r.files) for r in wrote)} file(s) to {out_dir}."
                 if wrote else "Export: nothing was written (see the report).")
@@ -156,13 +189,40 @@ def badge(node):
         raise hou.NodeWarning(message or "GO, WITH NOTES: the web export will look different from Karma.")
 
 
+def _preview_url_for(node, root: str) -> str:
+    """Deep-link to the exported USD entry under <repo>/stages/, else the viewer root."""
+    base = f"http://127.0.0.1:{PORT}/"
+    out_dir = _out_dir(node)
+    if not out_dir or not os.path.isdir(out_dir):
+        return base
+    order = (".usda", ".usdc", ".usd")
+    entries = sorted(
+        (p for p in Path(out_dir).iterdir() if p.is_file() and p.suffix.lower() in order),
+        key=lambda p: (order.index(p.suffix.lower()), p.name),
+    )
+    if not entries:
+        return base
+    try:
+        from webexport import api
+        url = api.preview_url(entries[0])
+        if url:
+            return url.replace(f":{api.PORT}/", f":{PORT}/", 1)
+    except ImportError:
+        pass
+    try:
+        rel = entries[0].resolve().relative_to((Path(root) / "stages").resolve())
+        return f"{base}?stage=/stages/{rel.as_posix()}"
+    except ValueError:
+        return base
+
+
 def on_preview(kwargs):
     """Start the viewer server if the port is free, then open it. Never blocks Houdini."""
     node = kwargs["node"]
     root = _repo_root(node)
     server = os.path.join(root, "server", "serve.mjs")
     no_browser = bool(kwargs.get("webexport_no_browser")) or os.environ.get("WEBEXPORT_NO_BROWSER") == "1"
-    url = f"http://127.0.0.1:{PORT}/"
+    url = _preview_url_for(node, root)
     if not port_free(PORT):
         if not no_browser:
             webbrowser.open(url)
@@ -171,17 +231,29 @@ def on_preview(kwargs):
     if not os.path.exists(server):
         _put(node, "report", f"Preview: no server at {server}. Set WEBEXPORT_ROOT to the repo.")
         return
-    flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    argv = node_and_module_argv()
+    if not (shutil.which(argv[0]) or os.path.exists(argv[0])):
+        _put(node, "report", f"Preview: Node.js ({argv[0]}) was not found. Install Node.js 22+ or add it to PATH.")
+        return
     env = dict(os.environ, PORT=str(PORT))  # serve.mjs reads PORT; WEBEXPORT_PORT only picks it here
-    subprocess.Popen([node_and_module_argv()[0], server], cwd=root, env=env,
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
-                     creationflags=flags)
+    popen_kwargs = dict(
+        cwd=root, env=env,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
+    )
+    if sys.platform == "win32":
+        popen_kwargs["creationflags"] = (
+            getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        )
+    else:
+        popen_kwargs["start_new_session"] = True
+    subprocess.Popen([argv[0], server], **popen_kwargs)
     if not no_browser:
         webbrowser.open(url)
     _put(node, "report", f"Preview: started {server} on {url}.")
 
 
 def node_and_module_argv():
-    """node.exe beside Houdini's own runtime, so Preview does not depend on PATH."""
-    exe = os.path.join(os.path.dirname(sys.executable), "node.exe")
+    """node beside Houdini's own runtime, so Preview does not depend on PATH."""
+    name = "node.exe" if sys.platform == "win32" else "node"
+    exe = os.path.join(os.path.dirname(sys.executable), name)
     return [exe if os.path.exists(exe) else "node"]

@@ -42,10 +42,13 @@ def checks(tag, head):
         problems.append("local main and GitHub main differ: pull or push first")
     if run("git", "ls-remote", "--tags", "origin", tag).stdout.strip():
         problems.append(f"{tag} already exists on GitHub")
-    ci = run("gh", "run", "list", "--repo", REPO, "--commit", head, "--json", "event,status,conclusion")
+    ci = run("gh", "run", "list", "--repo", REPO, "--workflow", "CI", "--commit", head,
+             "--json", "event,status,conclusion,workflowName")
     runs = json.loads(ci.stdout) if ci.returncode == 0 and ci.stdout.strip() else []
-    if not any(r["event"] == "push" and r["conclusion"] == "success" for r in runs):
-        seen = ", ".join(f"{r['event']} {r['status']} {r['conclusion'] or ''}".strip() for r in runs) or "no runs found"
+    ci_runs = [r for r in runs if r.get("workflowName", "CI") == "CI"]
+    if not any(r.get("event") == "push" and r.get("conclusion") == "success" for r in ci_runs):
+        seen = ", ".join(f"{r.get('workflowName', 'CI')} {r.get('event', '')} {r.get('status', '')} {r.get('conclusion') or ''}".strip()
+                         for r in runs) or "no runs found"
         problems.append(f"CI has not passed on {head[:7]} yet ({seen})")
     return problems
 

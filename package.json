@@ -1,6 +1,6 @@
 {
   "name": "solaris-to-three",
-  "version": "0.6.10",
+  "version": "0.7.0",
   "description": "Publish Houdini Solaris USD stages to the web: OpenUSD in WebAssembly, rendered by three.js r187.",
   "private": true,
   "license": "MIT",
@@ -10,8 +10,9 @@
   },
   "scripts": {
     "start": "node server/serve.mjs",
-    "test": "npm run test:syntax && npm run test:py",
-    "test:syntax": "node --check server/serve.mjs && node --check viewer/main.js && node --check tests/browser/smoke.mjs && node --check tests/browser/shots.mjs",
+    "test": "npm run test:syntax && npm run test:server && npm run test:py",
+    "test:syntax": "node --check server/serve.mjs && node --check viewer/main.js && node --check tests/browser/smoke.mjs && node --check tests/browser/shots.mjs && node --check tests/browser/server_security.mjs",
+    "test:server": "node tests/browser/server_security.mjs",
     "test:py": "python -m unittest discover -s tests -v",
     "test:browser": "node tests/browser/smoke.mjs",
     "route": "python tools/build_router.py plan/tasks.json --check plan/tasks.expected.json",

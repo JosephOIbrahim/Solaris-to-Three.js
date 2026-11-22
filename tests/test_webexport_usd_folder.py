@@ -209,7 +209,9 @@ class DirtyFixture(TempCase):
         self.assertLessEqual({"composition_error", "udim_texture", "texture_format", "missing_file",
                               "materialx_no_uv"}, blocks(r))
         self.assertEqual(set(items(r, "changes")), {"dome_texture", "approximated_light", "unrecognised_shader"})
-        self.assertIn("untested_materialx_node", items(r, "note"))
+        # With Jev off, unchecked ND_* nodes are not assumed portable: both unfamiliar shaders need eyes.
+        self.assertEqual(items(r, "changes")["unrecognised_shader"].count, 2)
+        self.assertNotIn("untested_materialx_node", items(r, "note"))
         self.assertEqual(r.report.jev_note, "Jev off (--no-jev)")
         self.assertIn("FIX FIRST", r.report.render_text())
 

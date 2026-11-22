@@ -67,6 +67,11 @@ def path_problems(entry_file: str | Path) -> list[str]:
     out += [f"resolves to no file: {p}" for p in unresolved]
     out += [f"outside the folder: {a}" for a in assets if not inside(a, folder)]
     for layer in layers:
+        if Ar.IsPackageRelativePath(layer.identifier):
+            outer = Ar.SplitPackageRelativePathOuter(layer.identifier)[0]
+            if not outer or not inside(outer, folder):
+                out.append(f"layer outside the folder: {layer.identifier}")
+            continue
         if layer.anonymous or not layer.realPath or not inside(layer.realPath, folder):
             out.append(f"layer outside the folder: {layer.identifier}")
             continue
@@ -100,16 +105,13 @@ def validate_folder(entry_file: str | Path, jev_on: bool = False) -> Validation:
     if not stage:
         v.problems.append(f"{entry.name} does not open")
         return v
-    try:
-        c = web_census.census(entry)
-    except SystemExit as e:
-        v.problems.append(f"the census could not open {entry.name}: {e}")
-        return v
+    c = census_of(stage)
     verdict, red, amber, info, note = web_census.decide(c, jev_on=jev_on)
     v.verdict = verdict
     v.census_text = web_census.report(entry, c, verdict, red, amber, info, note)
     v.problems += path_problems(entry)
     prim = stage.GetPrimAtPath(SETTINGS_PATH)
-    if not (prim and prim.GetTypeName() == "Scope" and stage.GetRootLayer().GetPrimAtPath(SETTINGS_PATH)):
+    if not (prim and prim.IsValid() and prim.IsActive() and prim.GetTypeName() == "Scope"
+            and stage.GetRootLayer().GetPrimAtPath(SETTINGS_PATH)):
         v.problems.append(f"{SETTINGS_PATH} is not a Scope in {entry.name}")
     return v

@@ -16,9 +16,18 @@
     #hud p, #status { margin: 4px 0 0; color: var(--dim); }
     #status { position: fixed; left: 12px; bottom: 12px; right: 12px; white-space: pre-wrap; }
   </style>
+  <script>
+    window.__x3dEarlyErrors = [];
+    window.__onXiteScriptError = () => {
+      const msg = "X_ITE script failed to load from jsDelivr (offline or COEP blocked)";
+      window.__x3dEarlyErrors.push(msg);
+      if (window.__x3d) window.__x3d.errors.push(msg);
+    };
+  </script>
   <!-- X_ITE is MIT (Copyright (c) 2009 Holger Seelig and other contributors), pinned and loaded
        from jsDelivr as its documentation recommends. No build step, no vendored copy. -->
-  <script defer src="https://cdn.jsdelivr.net/npm/x_ite@16.7.1/dist/x_ite.min.js"></script>
+  <script defer crossorigin="anonymous" onerror="window.__onXiteScriptError()"
+          src="https://cdn.jsdelivr.net/npm/x_ite@16.7.1/dist/x_ite.min.js"></script>
 </head>
 <body>
   <div id="hud"><h1>X3D · X_ITE</h1><p id="sub">loading…</p></div>
@@ -26,21 +35,37 @@
   <x3d-canvas id="scene" contentScale="auto" update="auto"></x3d-canvas>
 
   <script>
-    // ?model=/fixtures/stage-flat/hero.x3d  (the exporter's own output)
+    // ?model=/fixtures/stage-flat/hero.x3d  (must be same-origin under /fixtures/ or /stages/)
     (() => {
-      const model = new URL(new URLSearchParams(location.search).get("model") || "/fixtures/stage-flat/hero.x3d",
-                            location.href).href;
-      const report = { url: model, ready: false, loaded: false, errors: [],
+      const report = { url: null, ready: false, loaded: false, errors: [...(window.__x3dEarlyErrors || [])],
                        switches: 0, uses: 0, shapes: 0, viewpoints: 0, materials: 0, lights: 0 };
       window.__x3d = report;
       addEventListener("error", (e) => report.errors.push(String(e.message || e)));
       addEventListener("unhandledrejection", (e) => report.errors.push(String(e.reason?.message || e.reason)));
 
+      const rawModel = new URLSearchParams(location.search).get("model") || "/fixtures/stage-flat/hero.x3d";
+      let model;
+      try {
+        const u = new URL(rawModel, location.href);
+        if (u.origin !== location.origin || !/^\/(fixtures|stages)\//.test(u.pathname)) {
+          throw new Error(`blocked model URL (must be same-origin under /fixtures/ or /stages/): ${rawModel}`);
+        }
+        model = u.href;
+        report.url = model;
+      } catch (e) {
+        const msg = String(e.message || e);
+        report.errors.push(msg);
+        report.ready = true;
+        document.getElementById("sub").textContent = "blocked";
+        document.getElementById("status").textContent = msg;
+        return;
+      }
+
       const canvas = document.getElementById("scene");
       canvas.setAttribute("src", model);
       canvas.addEventListener("load", () => { report.loaded = true; });
       canvas.addEventListener("initialized", () => { report.loaded = true; });
-      canvas.addEventListener("error", (e) => report.errors.push("X_ITE could not load the scene"));
+      canvas.addEventListener("error", () => report.errors.push("X_ITE could not load the scene"));
 
       // X_ITE exposes no node counts, so the page reads the file it was given: the same bytes
       // the browser renders, counted independently of the renderer.
@@ -53,15 +78,25 @@
           report.uses = Array.from(doc.getElementsByTagName("*")).filter((el) => el.hasAttribute("USE")).length;
           report.shapes = doc.getElementsByTagName("Shape").length;
           report.viewpoints = doc.getElementsByTagName("Viewpoint").length;
-          report.materials = doc.getElementsByTagName("PhysicalMaterial").length;
+          report.materials = doc.getElementsByTagName("PhysicalMaterial").length
+                           + doc.getElementsByTagName("Material").length
+                           + doc.getElementsByTagName("UnlitMaterial").length;
           report.lights = doc.getElementsByTagName("PointLight").length
-                        + doc.getElementsByTagName("DirectionalLight").length;
+                        + doc.getElementsByTagName("DirectionalLight").length
+                        + doc.getElementsByTagName("SpotLight").length
+                        + doc.getElementsByTagName("EnvironmentLight").length;
           report.ready = true;
           document.getElementById("sub").textContent =
             `${report.shapes} shapes · ${report.uses} instances · ${report.switches} switches`;
           document.getElementById("status").textContent = `X_ITE · ${new URL(model).pathname}`;
         })
-        .catch((e) => { report.errors.push(String(e.message || e)); report.ready = true; });
+        .catch((e) => {
+          const msg = String(e.message || e);
+          report.errors.push(msg);
+          document.getElementById("sub").textContent = "failed";
+          document.getElementById("status").textContent = msg;
+          report.ready = true;
+        });
     })();
   </script>
 </body>

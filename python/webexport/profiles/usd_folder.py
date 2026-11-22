@@ -18,6 +18,7 @@ bridged by the viewer, which is worth knowing and changes no verdict.
 """
 from __future__ import annotations
 
+import os
 import re
 
 from pxr import Usd
@@ -137,7 +138,7 @@ def _census_blocked(c: dict) -> set[str]:
     for ext, ids in c["layers"].items():
         if ext not in web_census.WEB_LAYERS:
             out.update(ids)
-    return out | {_norm(p) for p in out}
+    return out | {_norm(p) for p in out if os.path.isabs(p)}
 
 
 def items_for(c: dict, decision: tuple, plan: FolderPlan, inv: Inventory) -> list[LossItem]:
@@ -155,7 +156,8 @@ def items_for(c: dict, decision: tuple, plan: FolderPlan, inv: Inventory) -> lis
                 # Absolute paths that resolve are copied in (the plan's note below); the rest can't be.
                 paths = [p for p in rows if is_absolute(p) or "$" in p]
                 var = [p for p in paths if "$" in p]
-                missing = [p for p in paths if "$" not in p and not any(r["resolved"] for r in rows[p])]
+                missing = [p for p in paths if "$" not in p and "<udim>" not in p.lower()
+                           and not any(r["resolved"] for r in rows[p])]
                 out.add("blocks", VAR_PATH, len(var), var)
                 out.add("blocks", ABSOLUTE_PATH, len(missing), missing)
             elif bucket == "red" and label == OUTSIDE:

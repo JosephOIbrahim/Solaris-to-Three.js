@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="64" height="64">
+  <title>Web Export — Solaris to three.js</title>
+  <!-- House mark (docs/assets/logo-mark-dark.svg): vermilion sun + 4 format scanlines. -->
+  <path d="M1 8a7 7 0 0 1 14 0z" fill="#E25B3F"/>
+  <path d="M1.0179 8.5H14.9821M1.4617 10.5H14.5383M2.6381 12.5H13.3619M5.4019 14.5H10.5981" fill="none" stroke="#DAD6CF" stroke-width="1" vector-effect="non-scaling-stroke" shape-rendering="crispEdges"/>
+</svg>

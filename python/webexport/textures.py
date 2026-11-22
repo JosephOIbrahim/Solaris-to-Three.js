@@ -49,9 +49,12 @@ def is_udim(path: str) -> bool:
 
 def flag(path: str) -> str | None:
     """Why no web format can load this texture: "udim", "texture_format", or None."""
-    if is_udim(path):
+    inner = path
+    while inner and Ar.IsPackageRelativePath(inner):
+        _, inner = Ar.SplitPackageRelativePathOuter(inner)
+    if is_udim(inner):
         return "udim"
-    if os.path.splitext(path)[1].lower() in BLOCKED_FORMATS:
+    if os.path.splitext(inner)[1].lower() in BLOCKED_FORMATS:
         return "texture_format"
     return None
 
@@ -73,4 +76,5 @@ def copy(src: str | Path, dst: str | Path) -> int:
     dst = Path(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)
+    os.chmod(dst, dst.stat().st_mode | 0o200)
     return dst.stat().st_size

@@ -41,12 +41,13 @@ class X3dProfile:
     def _images(self) -> list[LossItem]:
         material_images = {t for m in self.inv.materials for t in m.textures}
         items = []
-        bad = [t.path for t in self.inv.textures if t.path in material_images and t.ext not in FETCHABLE]
+        bad = [t.path for t in self.inv.textures
+               if t.path in material_images and not t.is_udim and t.ext not in FETCHABLE]
         if bad:
             items.append(_item("blocks", "image_format", bad, "not usable as an ImageTexture",
                                "convert the image to PNG or JPEG"))
         missing = [t.path for t in self.inv.textures
-                   if t.path in material_images and t.ext in FETCHABLE and not t.exists]
+                   if t.path in material_images and not t.is_udim and t.ext in FETCHABLE and not t.exists]
         if missing:
             items.append(_item("blocks", "missing_image", missing, "missing, so the texture would not load",
                                "put the image where the stage points"))
@@ -57,7 +58,8 @@ class X3dProfile:
         if self.inv.composition.errors:
             items.append(_item("blocks", "composition_error", self.inv.composition.errors,
                                "part of the stage does not load", "fix or remove the broken arc"))
-        good = [t.path for t in self.inv.textures if t.path in material_images and t.ext in FETCHABLE]
+        good = [t.path for t in self.inv.textures
+                if t.path in material_images and not t.is_udim and t.exists and t.ext in FETCHABLE]
         if good:
             items.append(_item("note", "copied_image", good, "copied next to the .x3d and referenced by URL"))
         return items
@@ -70,7 +72,9 @@ class X3dProfile:
                                "tessellate in Houdini before export if the smooth shape matters"))
         geo = [f"{v.prim_path}:{v.set_name}" for v in self.inv.variant_sets if v.kind in ("geometry", "mixed")]
         if geo:
-            items.append(_item("note", "geometry_variant", geo, "kept as a Switch; every option is in the file"))
+            items.append(_item("changes", "geometry_variant", geo,
+                               "the selected option only; geometry variants are not written as a Switch",
+                               "export one file per option if the viewer must switch"))
         mat = [f"{v.prim_path}:{v.set_name}" for v in self.inv.variant_sets if v.kind == "material"]
         if mat:
             items.append(_item("changes", "material_variant", mat,
@@ -85,13 +89,17 @@ class X3dProfile:
                                    "rotation and translation baked; scale change not representable "
                                    "in X3D",
                                    "bake the scale into the mesh points, or accept the start pose"))
-            else:
-                moved = xform_animated(self.stage)
-                if moved:
-                    n = len(moved)
-                    items.append(_item("note", "animation", moved,
-                                       f"xform animation on {n} prim{'s' if n != 1 else ''} baked as "
-                                       "TimeSensor and interpolators; other animated attributes are not"))
+            scaling_set = set(scaling)
+            moved = [p for p in xform_animated(self.stage) if p not in scaling_set]
+            if moved:
+                n = len(moved)
+                items.append(_item("note", "animation", moved,
+                                   f"xform animation on {n} prim{'s' if n != 1 else ''} baked as "
+                                   "TimeSensor and interpolators; other animated attributes are not"))
+            if (scaling or moved) and self.inv.time_range and (self.inv.time_range[1] - self.inv.time_range[0] + 1) > 600:
+                span = int(self.inv.time_range[1] - self.inv.time_range[0] + 1)
+                items.append(_item("note", "animation_decimated", scaling or moved,
+                                   f"range of {span} frames decimated to at most 600 samples"))
         moving = animated_attributes(self.stage) if self.stage is not None else []
         if moving:
             items.append(_item("changes", "animated_attribute", moving,
@@ -103,7 +111,7 @@ class X3dProfile:
         kept = [l.path for l in self.inv.lights if l.type in PUNCTUAL]
         if kept:
             items.append(_item("note", "punctual_light", kept, "a PointLight or DirectionalLight"))
-        dropped = [f"{l.type} {l.path}" for l in self.inv.lights if l.type in NO_EQUIVALENT]
+        dropped = [f"{l.type} {l.path}" for l in self.inv.lights if l.type not in PUNCTUAL]
         if dropped:
             items.append(_item("changes", "light_dropped", dropped,
                                "dropped; X3D 4.0 has no area or environment light",
@@ -126,6 +134,18 @@ class X3dProfile:
             items.append(_item("changes", "materialx", materialx,
                                "the UsdPreviewSurface values, else a flat base colour",
                                "bind a UsdPreviewSurface for X3D, or accept the approximation"))
+        other = [m.path for m in self.inv.materials if m.kind == "other"]
+        if other:
+            items.append(_item("changes", "shader_not_read", other,
+                               "renderer-specific or unbound shader falls back to default colour",
+                               "bind a UsdPreviewSurface for X3D"))
+        parts = []
+        if self.inv.up_axis and self.inv.up_axis.upper() != "Y":
+            parts.append(f"{self.inv.up_axis}-up rotated to Y-up")
+        if self.inv.meters_per_unit and abs(self.inv.meters_per_unit - 1.0) > 1e-6:
+            parts.append(f"{self.inv.meters_per_unit:g} m/unit scaled to metres")
+        if parts:
+            items.append(LossItem("note", "stage_units", 1, [self.inv.root_layer], "; ".join(parts)))
         return items
 
     def assess(self, inv: Inventory) -> list[LossItem]:

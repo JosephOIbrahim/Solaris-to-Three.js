@@ -79,7 +79,7 @@ def _kept(inv: Inventory) -> list[LossItem]:
     lights = [l.path for l in inv.lights if l.type in PUNCTUAL]
     if lights:
         items.append(_item("note", "punctual_light", lights, "kept"))
-    packed = [t.path for t in inv.textures if t.exists and textures.flag(t.path) is None]
+    packed = [t.path for t in inv.textures if t.exists and not t.is_udim and textures.flag(t.path) is None]
     if packed:
         items.append(_item("note", "texture_packed", packed, "packed into the archive"))
     return items
@@ -132,10 +132,11 @@ class UsdzProfile:
         self.jev_note = ""
 
     def assess(self, inv: Inventory) -> list[LossItem]:
-        folder = UsdFolderProfile(stage=self.stage, facts=self.facts, plan=self.plan, jev_on=self.jev_on)
+        # BROWSER_ONLY drops all shader/Jev findings, so never spend a redundant Jev call for USDZ.
+        folder = UsdFolderProfile(stage=self.stage, facts=self.facts, plan=self.plan, jev_on=False)
         folder_items = folder.assess(inv)
         self.plan = folder.plan
-        self.census, self.decision, self.jev_note = folder.census, folder.decision, folder.jev_note
+        self.census, self.decision, self.jev_note = folder.census, folder.decision, ""
 
         kept = []
         for item in folder_items:

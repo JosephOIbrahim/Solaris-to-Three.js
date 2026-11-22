@@ -4,6 +4,10 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-21
+
+This release delivers the first-principles hardening across the pure-`pxr` core, format writers, browser runtime, HTTP server, Houdini adapter, and CI, plus a Houdini 22 custom shelf and PySide6 Python Panel.
+
 ### Added
 
 - `docs/review-2026-11-12.md`, an independent review of the tree at v0.6.10 by three lanes (export core, browser side, docs and tooling), ranked and deduplicated: four blockers, nineteen majors, twelve minors, the areas that held up, and six refinements.
@@ -11,6 +15,18 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 - B1 is fixed: the glTF writer expands vertices per corner and welds only when position, normal and UV agree, so POSITION, NORMAL and TEXCOORD_0 are parallel arrays indexed by the same index buffer. A UV seam is now representable. `validate_glb` checks attribute parity, that indices stay inside the vertex array and that triangle indices come in threes, and the test suite includes the mutation that proves it fails. `fixtures/stage-flat/hero.glb` is regenerated: the floor's attributes are 4/4/4 and each pedestal's are 24/24.
 - B2 is fixed: both writers now traverse with `Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies())` instead of `stage.Traverse()`, so geometry inside instanceable references is written instead of silently omitted. A regression test in each format builds two instanceable references to a component and asserts the geometry appears: the glb has two meshes and the X3D Scene is not empty. Before the fix the same stage wrote zero meshes with a GO report.
 - B3 is fixed: the X3D writer now writes `TextureCoordinate` and `texCoordIndex` for per-corner UVs, so a UV seam survives instead of collapsing to default mapping. It also writes `-1` at the end of every face in `coordIndex`, not just once at the end, which previously turned each mesh into a single polygon. The seam regression test asserts the UVs differ across the seam and that both index lists carry their separators. `fixtures/stage-flat/hero.x3d` is regenerated and the X3D 4.0 schema still validates.
+- B4 is fixed: `viewer/players/gltf.html` now frames from the exported perspective camera on load and recomputes vertical FOV on viewport resize, adds MIT `OrbitControls`, `RoomEnvironment` IBL, `AnimationMixer`, and applies exported `extras.web` title/exposure.
+- Added `tests/test_audit_regressions.py` (18 unit tests covering the first-principles audit fixes) and `tests/browser/server_security.mjs` (13 HTTP security/header tests wired into `npm test` and CI).
+- Added a Houdini 22 custom shelf (`houdini/toolbar/webexport.shelf`, `houdini/scripts/python/webexport_shelf.py`, `houdini/config/Icons/webexport.svg`) with five Solaris tools (Add Web Export, Report Panel, Check Stage, Export Web, Preview Viewer) and a Houdini 22 PySide6 Python Panel (`houdini/python_panels/webexport.pypanel`, `python/webexport/panel/`) rendering side-by-side loss reports, format verdict cards, a feature comparison matrix, and bidirectional `/WebSettings` sync, plus `tests/test_houdini_ui.py`.
+
+### Fixed
+
+- Fixed USD row-vector matrix scale/rotation decomposition (`GetRow(i)` + negative determinant check) across `inventory.py`, `writers/gltf.py`, and `writers/x3d.py`.
+- Fixed `inventory.py` texture discovery on `UsdShade.Material`/`NodeGraph` `inputs:*` (excluding `info:*` and `*:ies:file`), value-authoring layer lookup in `asset_location`, instance-proxy prim stacks, empty `mtlx:surface` fallback, and blocked `subdivisionScheme`.
+- Fixed `writers/gltf.py` quad/n-gon `faceVarying` UVs, `UsdUVTexture` source lookup, textured `baseColorFactor` / `opacity` / `emissiveColor`, `leftHanded` winding, `doubleSided`, visibility filtering, multi-prototype `Xform` `PointInstancer` (`ROTATION`/`SCALE`/`invisibleIds`, no duplicate prototype mesh), session-layer variant evaluation, multi-set variant namespacing, Z-up/`metersPerUnit` root transform, `DistantLight` `4pi` overexposure, time-sampled meshes/lights, quaternion continuity, empty-array stripping, and stdlib `array.array` packing.
+- Fixed `writers/x3d.py` quad `faceVarying` UVs, `<PhysicalMaterial>`/`ImageTexture` structure, unique `DEF` and texture filenames, Z-up/unit root transform, session-layer variant switching, multi-prototype instancing, camera roll preservation, and time-sampled lights; made `writers/usdz.py` archive replacement atomic; guarded package-relative layers in `writers/usd_folder.py` and source-overlap in `api.py`.
+- Hardened `server/serve.mjs` (method/Host allowlist, `CORP`/`nosniff`, `realpath()` boundary + `/vendor/` allowlist, read-before-`writeHead`, `/vendor/` cache header) and players (`viewer/main.js`, `gltf.html`, `x3d.html`: same-origin `/fixtures/` or `/stages/` URL guard, dynamic `@needle-tools/usd` import decoupling MIT `?route=js`, radiometric light intensity formulas, EXR dome + variant dome reload, ref-counted variant frame hold).
+- Fixed `hou_node.py` (`web_hudvs_limit`, no double-expanded `outdir`, `FIX FIRST` badge on exceptions, `on_preview` deep-link + missing `node` check), `scripts/install_package.py` (`hpath` verification), `tools/web_census.py` (unchecked `ND_*` routed to `amber`), `tools/jev.py` (`answer_for` guard), `tools/build_router.py` (`--check` exit code `1` on mismatch), `tools/release.py` (`--workflow CI`), and CI (`lxml` installed for X3D 4.0 XSD validation).
 
 ## [0.6.10] - 2026-11-12
 
@@ -215,7 +231,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.6.10...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.7.0
 [0.6.10]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.10
 [0.6.9]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.9
 [0.6.8]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.8

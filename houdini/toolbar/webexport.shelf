@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <!-- Web Export custom shelf for Houdini 22 Solaris (Solaris-to-Three.js).
+       Discovered automatically via packages/webexport.json (hpath -> houdini/).
+       All logic lives in houdini/scripts/python/webexport_shelf.py and webexport. -->
+
+  <toolshelf name="web_export" label="Web Export">
+    <memberTool name="webexport_add_node"/>
+    <memberTool name="webexport_open_panel"/>
+    <memberTool name="webexport_check"/>
+    <memberTool name="webexport_export"/>
+    <memberTool name="webexport_preview"/>
+  </toolshelf>
+
+  <tool name="webexport_add_node" label="Add Web Export" icon="webexport">
+    <helpText><![CDATA[Create a Web Export LOP (mythandlogic::web_export::1.0) in the active Solaris LOP network and wire it below the selected or display LOP.]]></helpText>
+    <toolMenuContext name="network">
+      <contextNetType>LOP</contextNetType>
+    </toolMenuContext>
+    <toolMenuContext name="viewer">
+      <contextNetType>LOP</contextNetType>
+    </toolMenuContext>
+    <toolSubmenu>File IO/Export</toolSubmenu>
+    <script scriptType="python"><![CDATA[import webexport_shelf
+webexport_shelf.add_web_export_node(kwargs)]]></script>
+  </tool>
+
+  <tool name="webexport_open_panel" label="Report Panel" icon="PANETYPES_python">
+    <helpText><![CDATA[Open or focus the Web Export Python Panel to inspect side-by-side loss reports across USD Folder, glTF, X3D, and USDZ.]]></helpText>
+    <toolMenuContext name="network">
+      <contextNetType>LOP</contextNetType>
+    </toolMenuContext>
+    <toolMenuContext name="viewer">
+      <contextNetType>LOP</contextNetType>
+    </toolMenuContext>
+    <toolSubmenu>File IO/Export</toolSubmenu>
+    <script scriptType="python"><![CDATA[import webexport_shelf
+webexport_shelf.open_report_panel(kwargs)]]></script>
+  </tool>
+
+  <tool name="webexport_check" label="Check Stage" icon="BUTTONS_verify">
+    <helpText><![CDATA[Run a read-only Web Export loss report check on the selected Web Export LOP or active Solaris LOP node. Never writes files.]]></helpText>
+    <toolMenuContext name="network">
+      <contextNetType>LOP</contextNetType>
+    </toolMenuContext>
+    <toolMenuContext name="viewer">
+      <contextNetType>LOP</contextNetType>
+    </toolMenuContext>
+    <toolSubmenu>File IO/Export</toolSubmenu>
+    <script scriptType="python"><![CDATA[import webexport_shelf
+webexport_shelf.check_stage(kwargs)]]></script>
+  </tool>
+
+  <tool name="webexport_export" label="Export Web" icon="ROP_usd">
+    <helpText><![CDATA[Export the active Web Export LOP to all ticked web formats (USD Folder, glTF, X3D, USDZ). Writes nothing if any format blocks (FIX FIRST).]]></helpText>
+    <toolMenuContext name="network">
+      <contextNetType>LOP</contextNetType>
+    </toolMenuContext>
+    <toolMenuContext name="viewer">
+      <contextNetType>LOP</contextNetType>
+    </toolMenuContext>
+    <toolSubmenu>File IO/Export</toolSubmenu>
+    <script scriptType="python"><![CDATA[import webexport_shelf
+webexport_shelf.export_stage(kwargs)]]></script>
+  </tool>
+
+  <tool name="webexport_preview" label="Preview Viewer" icon="BUTTONS_play">
+    <helpText><![CDATA[Start the local Solaris-to-Three.js static server (with COOP/COEP headers) and open the exported stage in the default browser.]]></helpText>
+    <toolMenuContext name="network">
+      <contextNetType>LOP</contextNetType>
+    </toolMenuContext>
+    <toolMenuContext name="viewer">
+      <contextNetType>LOP</contextNetType>
+    </toolMenuContext>
+    <toolSubmenu>File IO/Export</toolSubmenu>
+    <script scriptType="python"><![CDATA[import webexport_shelf
+webexport_shelf.preview_viewer(kwargs)]]></script>
+  </tool>
+</shelfDocument>

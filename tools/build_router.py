@@ -83,12 +83,19 @@ def route(plan):
         i = t["id"]
         row = {"id": i, "title": t["title"], "after": t.get("after", [])}
         if answers:
-            w, s, e = answers[f"{i}_where"], answers[f"{i}_scaffold"], answers[f"{i}_effort"]
-            row.update(jev_where=w["choice"], where_conf=round(float(w["confidence"]), 2),
-                       scaffold=s["choice"] if float(s["confidence"]) >= FLOOR else "?",
-                       effort=float(e["score"]), effort_conf=round(float(e["confidence"]), 2))
-            row["unsure"] = row["where_conf"] < FLOOR
-            row["lane"] = "decision" if row["unsure"] else row["jev_where"]
+            w = jev.answer_for(answers, f"{i}_where")
+            s = jev.answer_for(answers, f"{i}_scaffold")
+            e = jev.answer_for(answers, f"{i}_effort")
+            where_choice = w.get("choice") if w else None
+            where_conf = round(float(w["confidence"]), 2) if (w and w.get("confidence") is not None) else 0.0
+            scaffold_conf = float(s["confidence"]) if (s and s.get("confidence") is not None) else 0.0
+            scaffold = s.get("choice") if (s and s.get("choice") and scaffold_conf >= FLOOR) else "?"
+            effort = float(e["score"]) if (e and e.get("score") is not None) else None
+            effort_conf = round(float(e["confidence"]), 2) if (e and e.get("confidence") is not None) else None
+            unsure = where_choice not in WHERE or where_conf < FLOOR
+            row.update(jev_where=where_choice or "?", where_conf=where_conf,
+                       scaffold=scaffold, effort=effort, effort_conf=effort_conf,
+                       unsure=unsure, lane="decision" if unsure else where_choice)
         else:
             row.update(lane=keyword_guess(t), jev_where=None, where_conf=None, scaffold="?", effort=None,
                        effort_conf=None, unsure=False, guess=True)
@@ -144,13 +151,13 @@ def markdown(rows, note, title):
     return "\n".join(md)
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser(description="Decide where each build task runs before a big model spends tokens.")
     ap.add_argument("tasks", help="tasks.json: plan, environment, tasks[{id,title,detail,after}]")
     ap.add_argument("--md", help="also write the board as Markdown (for the Project or Duet)")
     ap.add_argument("--json", help="also write the routes as JSON")
-    ap.add_argument("--check", help="expected lanes {id: lane}; prints how often the router agrees")
-    a = ap.parse_args()
+    ap.add_argument("--check", help="expected lanes {id: lane}; exits 1 on disagreement")
+    a = ap.parse_args(argv)
     plan = json.loads(Path(a.tasks).read_text(encoding="utf-8"))
     rows, note = route(plan)
     title = Path(a.tasks).name
@@ -163,6 +170,9 @@ def main():
         exp = {k: v for k, v in json.loads(Path(a.check).read_text(encoding="utf-8")).items() if not k.startswith("_")}
         miss = [(r["id"], exp[r["id"]], r["lane"]) for r in rows if r["id"] in exp and exp[r["id"]] != r["lane"]]
         print(f"CHECK  agrees on {len(exp) - len(miss)} of {len(exp)}" + "".join(f"\n  {i}: expected {e}, got {g}" for i, e, g in miss))
+        if miss:
+            return 1
+    return 0
 
 
 if __name__ == "__main__":

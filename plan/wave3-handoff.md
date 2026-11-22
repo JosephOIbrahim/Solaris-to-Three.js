@@ -1,14 +1,14 @@
-# Handoff after v0.6.8
+# Handoff after v0.7.0
 
-Start a fresh session in `E:\Myth_and_Logic\Software\Solaris-to-Three.js` with this note, `plan/web-export-blueprint.md` and `plan/wave8-tasks.json`. v0.6.8 is the current release; one LOP node writes four formats. glTF is shipped, so the old wave 3 mission is closed: this note is about what comes after it.
+Start a fresh session in `E:\Myth_and_Logic\Software\Solaris-to-Three.js` with this note, `plan/web-export-blueprint.md` and `plan/wave8-tasks.json`. v0.7.0 is the current release: one LOP node writes four formats, with first-principles hardening across the core writers, viewer runtime, HTTP server, Houdini adapter, and CI, plus a Houdini 22 custom shelf and PySide6 Python Panel.
 
 Reading path: section 01 for where things stand, 02 for what is next, then 03 and 04 before touching anything. About five minutes.
 
 ---
 
-### 01. Where things stand (2026-11-12)
+### 01. Where things stand (2026-11-21)
 
-01. `package.json`, `README.md` and `CHANGELOG.md` say **v0.6.8**, released 2026-11-12 (pre-release). Six patches since v0.6.2 changed nothing in the export path: v0.6.3, v0.6.6 and v0.6.8 refreshed this note; v0.6.4 added the HDA format assertion and repaired the changelog's heading order; v0.6.5 added the changelog shape checks; v0.6.7 added the blank-line check. CI passed on each release commit, and the on-demand browser dispatch on `d6b3b7a` passed 18 of 18. The on-demand browser dispatch on `aa60357` passed 18 of 18 as well, so both release commits are verified on GitHub's runner. `tests/test_claims.py` fails when the README version, the current release's bullets, the format list, a relative link, the card's paths, or the changelog's shape drift from the code.
+01. `package.json`, `README.md` and `CHANGELOG.md` are at **v0.7.0** on `main`. CI runs Python unit tests (with `usd-core==26.5` and `lxml`), JS syntax checks, and HTTP server security checks (`npm run test:server`). `tests/test_claims.py` fails when the README version, the current release's bullets, the format list, a relative link, the card's paths, or the changelog's shape drift from the code.
 
 02. One LOP node, `mythandlogic::web_export::1.0`, installs from `py -3.12 scripts/install_package.py` and writes four formats from one Export: USD Folder, glTF (`.glb`), X3D (`.x3d`) and USDZ (`.usdz`). `api.FORMATS` is `("usd_folder", "gltf", "x3d", "usdz")`; splats is the planned fifth and is not written. With all four toggles on, the fixture gives GO and Export writes all four on hython 22.0.400, .492 and .466. `tests/hou/test_hda.py` now fails if any ticked format writes no file, so a disabled or broken writer cannot pass behind the others.
 
@@ -26,7 +26,7 @@ Reading path: section 01 for where things stand, 02 for what is next, then 03 an
 
 07. The prose drift found earlier is fixed, and `tests/test_claims.py` guards the classes of it that matter: the README's version, release bullets, the format list, relative links, the card's paths, and now the changelog's shape. The last three checks are structural, because rolls damaged the file rather than drifting its words: it must open with `# Changelog`, the `## [x.y.z]` headings must descend, and every `## [` and `### ` heading needs a blank line under it. Each was verified by running it against deliberately broken files; the blank-line check also passes a well-formed one, which matters as much. The README no longer states a test count, deliberately: it changed four times in a day.
 
-08. Machine: use `py -3.12` for tests and scripts. It has `usd-core` 26.5 and no numpy, PIL, pygltflib or trimesh, so the writers pack binary themselves and copy image bytes as they are. Hython runs pin `HOUDINI_USER_PREF_DIR=C:/Users/User/OneDrive/Documents/houdini22.0`. Plain `python` is 3.14.2 today, its `python314.dll` is present, and `npm test` ran the full suite through it; the pinned interpreter is still 3.12 because that is what CI tests. The E1 repair task remains on the list.
+08. Machine: use `py -3.12` (or the active Python 3.12 environment) for tests and scripts. CI tests on Python 3.12 with `usd-core==26.5` and `lxml`, with no `numpy`, `PIL`, `pygltflib` or `trimesh`, so the writers pack binary themselves (stdlib `array.array`) and copy image bytes as they are. Hython runs pin `HOUDINI_USER_PREF_DIR=C:/Users/User/OneDrive/Documents/houdini22.0`. **E1** is closed.
 
 ---
 
@@ -101,12 +101,8 @@ Still unsettled:
 
 03. **J2, Preview in the GUI**: the headless path is proven on 22.0.400 — the server starts detached and outlives hython. The GUI click is untested: whether it flashes a console, stalls the UI, or leaves the server running.
 
-04. **E1, python 3.14**: works on this machine today and ran the suite, but it is not the pinned interpreter. The repair task is still on the wave 7 board.
-
-05. **T03, a real Karma export**: still the missing proof that the census and the viewers agree with production work rather than the fixtures.
-
-06. **Prose drift** listed in section 01.07: the test count in README, the USD-folder-only wording in `docs/web-export.md`, and the glTF writer header. The wave 7 F2 task exists because green tests did not catch this kind of drift.
+04. **T03, a real Karma export**: still the missing proof that the census and the viewers agree with production work rather than the fixtures.
 
 ---
 
-The node, the four formats and the three players are shipped at v0.6.2. Nothing in the export path blocks the next session; the choice of feature is Joe's.
+The node, the four formats, the three players, the Houdini 22 custom shelf, and the PySide6 Python Panel are shipped at v0.7.0; the choice of next feature is Joe's.

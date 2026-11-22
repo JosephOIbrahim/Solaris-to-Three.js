@@ -75,11 +75,15 @@ def decide(d):
     if not answers:
         rec.update(verdict="ASK JOE", reasons=[f"no judgment ({note})"])
         return rec
-    a = answers["approach"]
-    probs = {k: round(float(v), 3) for k, v in (a.get("probabilities") or {}).items()}
+    a = jev.answer_for(answers, "approach")
+    if a is None:
+        rec.update(verdict="ASK JOE", reasons=[f"incomplete reply: missing approach ({note})"])
+        return rec
+    raw_probs = a.get("probabilities") if isinstance(a.get("probabilities"), dict) else {}
+    probs = {k: round(float(v), 3) for k, v in raw_probs.items()}
     choice = a.get("choice")
     p = probs.get(choice)
-    need = noul(answers.get("needs_person"))
+    need = noul(jev.answer_for(answers, "needs_person"))
     checks = {k[len("check_"):]: round(noul(v), 3) for k, v in answers.items() if k.startswith("check_")}
     reasons = []
     if choice == "neither":
@@ -88,7 +92,7 @@ def decide(d):
         reasons.append(f"the probability of {choice} is {'missing' if p is None else f'{p:.2f}'}, under {ACT}")
     if need > NOUL_NO:
         reasons.append(f"needs_person is {need:.2f}, above {NOUL_NO} ({word(need)})")
-    rec.update(choice=choice, probability=p, confidence=round(float(a.get("confidence", 0)), 3), probabilities=probs,
+    rec.update(choice=choice, probability=p, confidence=round(float(a.get("confidence") or 0), 3), probabilities=probs,
                needs_person=round(need, 3), checks=checks, verdict="ASK JOE" if reasons else "ADOPT", reasons=reasons)
     return rec
 

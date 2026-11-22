@@ -22,15 +22,17 @@ Pure pxr (principle 3): no Houdini here; hou_node.py calls this.
 """
 from __future__ import annotations
 
+import os
 import shutil
 import tempfile
+import urllib.parse
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
 from pxr import Usd, UsdUtils
 
-from .inventory import gather
+from .inventory import _norm, gather, inside
 from .profiles.gltf import GltfProfile
 from .profiles.usd_folder import UsdFolderProfile
 from .profiles.usdz import UsdzProfile
@@ -140,7 +142,7 @@ def preview_url(entry_file: Path) -> str | None:
         rel = Path(entry_file).resolve().relative_to((REPO / "stages").resolve())
     except ValueError:
         return None
-    return f"http://127.0.0.1:{PORT}/?stage=/stages/{rel.as_posix()}"
+    return f"http://127.0.0.1:{PORT}/?stage=/stages/{urllib.parse.quote(rel.as_posix(), safe='/')}"
 
 
 def export(stage: Usd.Stage, formats, out_dir, settings: WebSettings | None = None,
@@ -161,6 +163,12 @@ def export(stage: Usd.Stage, formats, out_dir, settings: WebSettings | None = No
         # Every report before any writer: a writer's read-only variant round-trip can dirty the
         # source root, and a later report must still describe the stage as it arrived.
         prepared = [_assess(live, fmt, facts, jev_on) for fmt in formats]
+        will_write = any(not any(i.severity == "blocks" for i in report.items) for report, _ in prepared)
+        if will_write and not stage.GetRootLayer().anonymous and stage.GetRootLayer().realPath:
+            src = os.path.dirname(os.path.realpath(stage.GetRootLayer().realPath))
+            if inside(str(out_dir), _norm(src)) or inside(src, _norm(str(out_dir))):
+                raise ValueError(f"The export folder {out_dir} overlaps the source folder {src}. "
+                                 "Pick a separate folder: the export never writes into its source.")
         results = []
         for fmt, (report, writer) in zip(formats, prepared):
             if any(i.severity == "blocks" for i in report.items):  # principle 1: nothing is written

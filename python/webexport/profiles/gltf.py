@@ -46,12 +46,12 @@ class GltfProfile:
         material_images = {t for m in self.inv.materials for t in m.textures}
         items = []
         bad = [t.path for t in self.inv.textures
-               if t.path in material_images and t.ext not in EMBEDDABLE]
+               if t.path in material_images and not t.is_udim and t.ext not in EMBEDDABLE]
         if bad:
             items.append(_item("blocks", "image_format", bad, "not embeddable in a .glb",
                                "convert the image to PNG or JPEG"))
         missing = [t.path for t in self.inv.textures
-                   if t.path in material_images and t.ext in EMBEDDABLE and not t.exists]
+                   if t.path in material_images and not t.is_udim and t.ext in EMBEDDABLE and not t.exists]
         if missing:
             items.append(_item("blocks", "missing_image", missing, "missing, so the file would not load",
                                "put the image where the stage points"))
@@ -62,7 +62,8 @@ class GltfProfile:
         if self.inv.composition.errors:
             items.append(_item("blocks", "composition_error", self.inv.composition.errors,
                                "part of the stage does not load", "fix or remove the broken arc"))
-        good = [t.path for t in self.inv.textures if t.path in material_images and t.ext in EMBEDDABLE]
+        good = [t.path for t in self.inv.textures
+                if t.path in material_images and not t.is_udim and t.exists and t.ext in EMBEDDABLE]
         if good:
             items.append(_item("note", "embedded_image", good, "embedded in the .glb, PNG or JPEG unchanged"))
         return items
@@ -91,6 +92,10 @@ class GltfProfile:
             items.append(_item("note", "animation", moved,
                                f"xform animation on {n} prim{'s' if n != 1 else ''} baked as glTF "
                                "animations; other animated attributes are not"))
+            if self.inv.time_range and (self.inv.time_range[1] - self.inv.time_range[0] + 1) > 600:
+                span = int(self.inv.time_range[1] - self.inv.time_range[0] + 1)
+                items.append(_item("note", "animation_decimated", moved,
+                                   f"range of {span} frames decimated to at most 600 samples"))
         moving = animated_attributes(self.stage) if self.stage is not None else []
         if moving:
             items.append(_item("changes", "animated_attribute", moving,
@@ -103,7 +108,7 @@ class GltfProfile:
         if kept:
             items.append(_item("note", "punctual_light", kept,
                                "a KHR_lights_punctual light; intensity converted to candela"))
-        dropped = [f"{l.type} {l.path}" for l in self.inv.lights if l.type in NO_EQUIVALENT]
+        dropped = [f"{l.type} {l.path}" for l in self.inv.lights if l.type not in PUNCTUAL]
         if dropped:
             items.append(_item("changes", "light_dropped", dropped,
                                "dropped; glTF has no area or environment light",
@@ -128,6 +133,18 @@ class GltfProfile:
             items.append(_item("changes", "materialx", materialx,
                                "the UsdPreviewSurface values, else a flat base colour",
                                "bind a UsdPreviewSurface for glTF, or accept the approximation"))
+        other = [m.path for m in self.inv.materials if m.kind == "other"]
+        if other:
+            items.append(_item("changes", "shader_not_read", other,
+                               "renderer-specific or unbound shader falls back to default colour",
+                               "bind a UsdPreviewSurface for glTF"))
+        parts = []
+        if self.inv.up_axis and self.inv.up_axis.upper() != "Y":
+            parts.append(f"{self.inv.up_axis}-up rotated to Y-up")
+        if self.inv.meters_per_unit and abs(self.inv.meters_per_unit - 1.0) > 1e-6:
+            parts.append(f"{self.inv.meters_per_unit:g} m/unit scaled to metres")
+        if parts:
+            items.append(LossItem("note", "stage_units", 1, [self.inv.root_layer], "; ".join(parts)))
         return items
 
     # -- the contract ----------------------------------------------------------------

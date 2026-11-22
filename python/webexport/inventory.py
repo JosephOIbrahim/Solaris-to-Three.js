@@ -161,18 +161,53 @@ def inside(p, folder):
     return p == folder or p.startswith(folder.rstrip(os.sep) + os.sep)
 
 
+def _unpacked_path(path: str) -> str:
+    """Strip any USDZ/package-relative outer wrappers (e.g. a.usdz[tex.png] -> tex.png)."""
+    while path and Ar.IsPackageRelativePath(path):
+        _, path = Ar.SplitPackageRelativePathOuter(path)
+    return path
+
+
+def _prim_stack(prim):
+    """Authored prim stack, resolving instance proxies into their prototype."""
+    target = prim.GetPrimInPrototype() if prim.IsInstanceProxy() else prim
+    return target.GetPrimStack() if target else []
+
+
+def _bound_material(prim):
+    """Compute bound material across allPurpose (''), 'full', then 'preview'."""
+    api = UsdShade.MaterialBindingAPI(prim)
+    for purpose in (UsdShade.Tokens.allPurpose, UsdShade.Tokens.full, UsdShade.Tokens.preview):
+        mat, _ = api.ComputeBoundMaterial(materialPurpose=purpose)
+        if mat:
+            return mat
+    return None
+
+
+def _anchor_in_layer(layer, rel_path):
+    where = layer.ComputeAbsolutePath(rel_path)
+    # A bare "tex/a.png" is a USD search path and comes back unanchored; anchor it to the layer.
+    if not os.path.isabs(where):
+        where = os.path.join(os.path.dirname(layer.realPath), where)
+    return where
+
+
 def asset_location(attr, ap):
     """Where an asset path points on disk: USD's resolved path, or, when it doesn't resolve
     (a missing file or a <UDIM> pattern), the path anchored to the layer that authored it."""
     if ap.resolvedPath:
         return ap.resolvedPath
+    fallback = None
     for spec in attr.GetPropertyStack(Usd.TimeCode.Default()):
-        if spec.layer and not spec.layer.anonymous and spec.layer.realPath:
-            where = spec.layer.ComputeAbsolutePath(ap.path)
-            # A bare "tex/a.png" is a USD search path and comes back unanchored; anchor it to the layer.
-            if not os.path.isabs(where):
-                where = os.path.join(os.path.dirname(spec.layer.realPath), where)
-            return where
+        layer = spec.layer
+        if not (layer and not layer.anonymous and layer.realPath):
+            continue
+        if fallback is None:
+            fallback = layer
+        if spec.HasDefaultValue() or layer.GetNumTimeSamplesForPath(spec.path) > 0:
+            return _anchor_in_layer(layer, ap.path)
+    if fallback is not None:
+        return _anchor_in_layer(fallback, ap.path)
     return None
 
 
@@ -240,9 +275,10 @@ def _shader_id(shader):
 
 
 def _surface(mat):
-    """(kind, info:id of the surface shader). A mtlx surface output makes it MaterialX, as the
-    census reads it. The mtlx context falls back to the universal output, so it never decides alone."""
-    if mat.GetSurfaceOutput("mtlx"):
+    """(kind, info:id of the surface shader). A connected mtlx surface output makes it MaterialX,
+    as the census reads it. The mtlx context falls back to the universal output, so it never decides alone."""
+    mtlx_out = mat.GetSurfaceOutput("mtlx")
+    if mtlx_out and mtlx_out.HasConnectedSource():
         return "materialx", _shader_id(_surface_source(mat, "mtlx"))
     sid = _shader_id(_surface_source(mat, ""))
     if sid == "UsdPreviewSurface":
@@ -376,7 +412,7 @@ def _sides(stage, owner, base, spec):
 def _variant_kind(prim, set_name):
     sides = set()
     stage, owner = prim.GetStage(), prim.GetPath()
-    for spec in prim.GetPrimStack():
+    for spec in _prim_stack(prim):
         if set_name not in spec.variantSets.keys():
             continue
         base = spec.path.StripAllVariantSelections()
@@ -393,7 +429,7 @@ def _variant_kind(prim, set_name):
 # ---- composition ----------------------------------------------------------------------
 
 def _arcs(prim, path, references, payloads, seen):
-    for spec in prim.GetPrimStack():
+    for spec in _prim_stack(prim):
         for kind, items, out in (("r", spec.referenceList, references), ("p", spec.payloadList, payloads)):
             for arc in items.GetAddedOrExplicitItems():
                 key = (kind, path, arc.assetPath)
@@ -451,15 +487,23 @@ def gather(stage: Usd.Stage, track_types: Iterable[str] = ()) -> StageFacts:
         if is_light or t.endswith("Light"):
             lights.setdefault(t, []).append(path)
             inv.lights.append(_light_fact(prim, path, t))
-        if prim.IsA(UsdShade.Shader) or is_light:
+        is_shade = prim.IsA(UsdShade.Shader) or prim.IsA(UsdShade.Material) or prim.IsA(UsdShade.NodeGraph)
+        if is_shade or is_light:
             for a in prim.GetAttributes():
                 if a.GetTypeName() not in (Sdf.ValueTypeNames.Asset, Sdf.ValueTypeNames.AssetArray):
                     continue
-                v = a.Get()
+                aname = a.GetName()
+                if aname.startswith("info:") or aname.endswith(":ies:file") or aname == "shaping:ies:file":
+                    continue
+                if is_shade and not aname.startswith("inputs:"):
+                    continue
+                v = _value(a)
                 for ap in ([v] if isinstance(v, Sdf.AssetPath) else list(v or [])):
                     if isinstance(ap, Sdf.AssetPath) and ap.path:
+                        inner = _unpacked_path(ap.path)
+                        ext = os.path.splitext(inner)[1].lower()
                         rows.append({"path": ap.path, "resolved": bool(ap.resolvedPath), "prim": path,
-                                     "dome": t.startswith("DomeLight"), "ext": os.path.splitext(ap.path)[1].lower()})
+                                     "dome": t.startswith("DomeLight"), "ext": ext})
                         where = None
                         # Absolute and $VAR paths have their own fix-first line; don't count them twice.
                         if not is_absolute(ap.path) and "$" not in ap.path:
@@ -473,25 +517,25 @@ def gather(stage: Usd.Stage, track_types: Iterable[str] = ()) -> StageFacts:
                             udim = "<udim>" in ap.path.lower()
                             exists = (_udim_tiles_exist(where or asset_location(a, ap) or ap.path) if udim
                                       else bool(ap.resolvedPath))
-                            textures[key] = TextureFact(ap.path, os.path.splitext(ap.path)[1].lower(), exists,
+                            textures[key] = TextureFact(ap.path, ext, exists,
                                                         udim, is_absolute(ap.path))
         if prim.IsA(UsdGeom.Mesh):
             mesh = UsdGeom.Mesh(prim)
-            bound = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
+            bound = _bound_material(prim)
             pv = UsdGeom.PrimvarsAPI(prim).GetPrimvars()
             has_uv = any(p.GetTypeName() in (Sdf.ValueTypeNames.TexCoord2fArray, Sdf.ValueTypeNames.Float2Array)
                          for p in pv)
             inv.meshes.append(MeshFact(path, _count(mesh.GetPointsAttr()), has_uv,
-                                       str(_value(mesh.GetSubdivisionSchemeAttr())), purpose,
+                                       str(_value(mesh.GetSubdivisionSchemeAttr()) or "none"), purpose,
                                        str(bound.GetPath()) if bound else None))
             if purpose in ("default", "render"):
                 mats = [bound]
-                mats += [UsdShade.MaterialBindingAPI(s.GetPrim()).ComputeBoundMaterial()[0]
+                mats += [_bound_material(s.GetPrim())
                          for s in UsdGeom.Subset.GetAllGeomSubsets(UsdGeom.Imageable(prim))]
                 mats = [m for m in mats if m]
                 if not mats:
                     unbound.append(path)
-                elif any(m.GetSurfaceOutput("mtlx") for m in mats):
+                elif any((out := m.GetSurfaceOutput("mtlx")) and out.HasConnectedSource() for m in mats):
                     if not has_uv:
                         no_uv.append(path)
         if prim.IsA(UsdGeom.PointInstancer):
@@ -586,8 +630,10 @@ def animated_attributes(stage: Usd.Stage) -> list[str]:
 
 def _world_scale(prim, time: float) -> tuple[float, float, float]:
     matrix = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode(time))
-    return tuple(math.sqrt(sum(matrix.GetColumn(i)[row] ** 2 for row in range(3)))
-                 for i in range(3))
+    sx, sy, sz = (math.sqrt(sum(matrix.GetRow(i)[col] ** 2 for col in range(3))) for i in range(3))
+    if matrix.GetDeterminant3() < 0:
+        sx = -sx
+    return (sx, sy, sz)
 
 
 def _sample_times(stage: Usd.Stage) -> tuple[float, float, float] | None:

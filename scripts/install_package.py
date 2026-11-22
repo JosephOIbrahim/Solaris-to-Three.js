@@ -119,6 +119,12 @@ def verify_target(target: Path, root: Path) -> list[str]:
         problems.append(f"PYTHONPATH does not include {want.as_posix()}")
     if not (Path(we) / "python" / "webexport").is_dir():
         problems.append(f"{(Path(we) / 'python' / 'webexport').as_posix()} does not exist")
+    if "hpath" in data:
+        hp = data.get("hpath")
+        hp_list = hp if isinstance(hp, list) else [hp]
+        want_hp = (Path(we) / "houdini").resolve()
+        if not any(isinstance(p, str) and Path(p).resolve() == want_hp for p in hp_list):
+            problems.append(f"hpath does not include {want_hp.as_posix()}")
     return problems
 
 

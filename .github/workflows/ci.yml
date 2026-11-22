@@ -31,9 +31,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      # The same OpenUSD release the browser runtime is built on (26.05).
-      - name: Install usd-core
-        run: python -m pip install "usd-core==26.5"
+      # The same OpenUSD release the browser runtime is built on (26.05), plus lxml for X3D 4.0 XSD checks.
+      - name: Install usd-core and lxml
+        run: python -m pip install "usd-core==26.5" lxml
 
       - name: Python unit tests
         run: python -m unittest discover -s tests -v
@@ -42,8 +42,10 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Syntax checks
-        run: npm run test:syntax
+      - name: Syntax and HTTP security checks
+        run: |
+          npm run test:syntax
+          npm run test:server
 
   browser:
     name: Headless browser test

@@ -76,7 +76,14 @@ def ask_jev(nodes):
     answers, note = jev.ask(questions, state)
     if not answers:
         return {}, note
-    return {s: (answers[f"n{i}"]["choice"], float(answers[f"n{i}"]["confidence"])) for i, s in enumerate(ids)}, note
+    out = {}
+    for i, s in enumerate(ids):
+        ans = jev.answer_for(answers, f"n{i}") if hasattr(jev, "answer_for") else (
+            answers.get(f"n{i}") if isinstance(answers.get(f"n{i}"), dict) else None
+        )
+        if ans and ans.get("choice") is not None and ans.get("confidence") is not None:
+            out[s] = (ans["choice"], float(ans["confidence"]))
+    return out, note
 
 
 def decide(c, jev_on=True):
@@ -113,14 +120,12 @@ def decide(c, jev_on=True):
             portable.append(s)
         elif choice and conf >= JEV_FLOOR and choice == "renderer_specific":
             renderer.append(f"{s} ({conf:.2f})")
-        elif not choice and s.startswith("ND_"):
-            portable.append(s)          # no Jev: standard MaterialX naming, unchecked
         else:
             unsure.append(s if not choice else f"{s} ({choice} {conf:.2f})")
     add(amber, "renderer-only nodes (fall back to grey)", renderer)
     add(amber, "shader nodes that need your eyes", unsure)
     if portable:
-        info.append((f"untested MaterialX nodes, {'Jev says portable' if calls else 'unchecked'}", len(portable), portable[0]))
+        info.append(("untested MaterialX nodes, Jev says portable", len(portable), portable[0]))
     if c["purposes"]["proxy"] or c["purposes"]["guide"]:
         info.append(("proxy/guide prims: Hydra hides, USDLoader shows",
                      c["purposes"]["proxy"] + c["purposes"]["guide"], ""))

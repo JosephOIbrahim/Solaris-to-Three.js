@@ -51,12 +51,15 @@ const sun = (() => {
 const sunProbe = await page.evaluate((s) => ({
   world: window.__app.probeEnv(s.world), unrotated: window.__app.probeEnv(s.unrotated), old: window.__app.probeEnv(s.old),
 }), sun);
+const variantHistory = [];
 for (const v of ["gold", "chrome"]) {
   await page.evaluate((v) => window.__app.selectVariant(v), v);
   await page.waitForTimeout(1500);
+  variantHistory.push(await page.evaluate(() => window.__report.lastVariantSwitch?.option));
   await shot(page, `02-hydra-${v}`);
 }
 await page.evaluate(() => window.__app.selectVariant("ember"));
+variantHistory.push(await page.evaluate(() => window.__report.lastVariantSwitch?.option));
 const meshes = () => page.evaluate(() => window.__inventory().meshes);
 const meshesBefore = await meshes();
 await page.evaluate(() => window.__app.setProxy());
@@ -103,7 +106,25 @@ await gltfPage.waitForFunction(() => window.__gltf?.ready || window.__gltf?.erro
 await gltfPage.waitForTimeout(800);
 const gltf = await gltfPage.evaluate(() => ({ ...window.__gltf }));
 await shot(gltfPage, "08-gltf-player");
+// B4 resize: narrowing to portrait must widen vertical FOV to preserve horizontal framing.
+await gltfPage.setViewportSize({ width: 390, height: 844 });
+await gltfPage.waitForTimeout(400);
+const gltfPortraitFov = await gltfPage.evaluate(() => window.__gltf.cameraFov);
 await gltfPage.close();
+
+// Direct MIT USDLoader route (?route=js): works without initializing Hydra WASM.
+const jsOnlyPage = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+jsOnlyPage.on("pageerror", (e) => logs.push(`[pageerror] ${e.message}`.slice(0, 400)));
+await jsOnlyPage.goto(`${BASE}&route=js`);
+await jsOnlyPage.waitForFunction(() => window.__report?.ready || window.__report?.errors?.length, null, { timeout: 120000 });
+await jsOnlyPage.waitForTimeout(800);
+const jsOnly = await jsOnlyPage.evaluate(() => ({
+  ready: window.__report.ready,
+  route: window.__report.route,
+  meshes: window.__report.jsRoute?.meshes || 0,
+  errors: window.__report.errors,
+}));
+await jsOnlyPage.close();
 
 // The X3D player: X_ITE (MIT) renders the exported fixture; the page also counts the file it
 // renders, because X_ITE exposes no node statistics.
@@ -115,6 +136,13 @@ await x3dPage.waitForTimeout(2000);
 const x3d = await x3dPage.evaluate(() => ({ ...window.__x3d }));
 await shot(x3dPage, "09-x3d-player");
 await x3dPage.close();
+
+// Security check: x3d.html must reject untrusted data:/external ?model= URLs.
+const x3dBlockPage = await browser.newPage({ viewport: { width: 640, height: 480 } });
+await x3dBlockPage.goto(`${ORIGIN}/players/x3d.html?model=data:text/xml,%3CX3D/%3E`);
+await x3dBlockPage.waitForFunction(() => window.__x3d?.ready, null, { timeout: 30000 });
+const x3dBlocked = await x3dBlockPage.evaluate(() => ({ url: window.__x3d.url, errors: window.__x3d.errors }));
+await x3dBlockPage.close();
 await browser.close();
 
 await writeFile(`${OUT}report.json`, JSON.stringify({ report, logs }, null, 2));
@@ -134,18 +162,27 @@ const checks = [
   [`dome sun where USD puts it, rotated ${DOME_ROTATE_Y} deg (radiance ${sunProbe.world.toFixed(1)}; ` +
     `unrotated ${sunProbe.unrotated.toFixed(1)}, old viewer ${sunProbe.old.toFixed(1)})`,
     sunProbe.world > 10 && sunProbe.unrotated < 5 && sunProbe.old < 5],
-  ["variant switch applied", report.lastVariantSwitch?.option === "ember"],
+  [`variant switches applied (${variantHistory.join(" -> ")})`,
+    variantHistory.join(",") === "gold,chrome,ember"],
   [`proxy shows, then hides again (${meshesBefore} -> ${meshesProxyOn} -> ${meshesProxyOff} meshes)`,
     meshesProxyOn > meshesBefore && meshesProxyOff === meshesBefore],
   ["USDLoader route loaded meshes", report.jsRoute?.meshes > 0],
+  [`direct MIT ?route=js loads without Hydra (${jsOnly.meshes} meshes, ${jsOnly.errors.length} errors)`,
+    jsOnly.ready === true && jsOnly.route === "js" && jsOnly.meshes > 0 && jsOnly.errors.length === 0],
   [`glTF player loads the exported fixture (${gltf.meshes} meshes, ${gltf.instanced} instances, ` +
     `${gltf.triangles} triangles, ${gltf.errors.length} errors)`,
-    gltf.ready === true && gltf.errors.length === 0 && gltf.meshes >= 8 && gltf.instanced === 36
+    gltf.ready === true && gltf.errors.length === 0 && gltf.meshes === 7 && gltf.instanced === 36
     && gltf.extensions.includes("EXT_mesh_gpu_instancing")],
+  // B4: the exported camera must be used and adapt vertical FOV on portrait resize.
+  [`glTF player uses the exported camera (${gltf.cameraUsed}, fov ${gltf.cameraFov} -> portrait ${gltfPortraitFov}, at ${gltf.cameraPosition})`,
+    gltf.cameraUsed === true && gltf.cameraFov > 0 && gltfPortraitFov > gltf.cameraFov
+    && Math.hypot(...(gltf.cameraPosition || [0, 0, 0])) > 0.5],
   [`X3D player loads the exported fixture (${x3d.shapes} shapes, ${x3d.uses} instances, ` +
     `${x3d.switches} switches, ${x3d.errors.length} errors)`,
     x3d.ready === true && x3d.errors.length === 0 && x3d.uses === 36 && x3d.switches >= 2
     && x3d.viewpoints === 1 && x3d.loaded === true],
+  ["X3D player rejects untrusted data: ?model= URL",
+    x3dBlocked.url === null && x3dBlocked.errors.length > 0],
   [`/WebSettings title applied (document.title = "${ws.title}")`, ws.title === WS_TITLE && ws.report?.applied?.titleSource === "web:title"],
   [`/WebSettings showHud = false hides #hud (display ${ws.hudDisplay})`, ws.hudDisplay === "none"],
   ["/WebSettings stage loaded clean, dome intact", ws.errors.length === 0 && ws.env],

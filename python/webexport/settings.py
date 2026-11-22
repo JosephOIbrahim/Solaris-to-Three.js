@@ -6,6 +6,7 @@ the stage file name, camera to the first camera, hudVariantSets to all.
 """
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass
 
@@ -57,11 +58,14 @@ def read_settings(stage: Usd.Stage) -> WebSettings:
             if v is None:
                 continue
             if name == "hudVariantSets":
-                v = [str(x) for x in v]
+                v = [v] if isinstance(v, str) else [str(x) for x in v]
             elif name in ("showProxy", "showHud"):
                 v = bool(v)
             elif name in ("backgroundBlur", "exposureOffset"):
-                v = round(float(v), 6)  # float32 on disk; keep 0.8 as 0.8
+                fv = float(v)
+                if not math.isfinite(fv):
+                    continue
+                v = round(fv, 6)  # float32 on disk; keep 0.8 as 0.8
             else:
                 v = str(v)
             setattr(s, name, v)

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pythonPanelDocument>
+  <!-- Web Export Python Panel for Houdini 22 Solaris (Solaris-to-Three.js).
+       Discovered automatically via packages/webexport.json (hpath -> houdini/).
+       Renders side-by-side LossReports for USD Folder, glTF, X3D, and USDZ. -->
+  <interface name="web_export_panel" label="Web Export" icon="webexport" showNetworkNavigationBar="true" help_url="">
+    <script><![CDATA[from webexport import panel
+
+_PANEL = None
+
+
+def onCreateInterface():
+    global _PANEL
+    _PANEL = panel.create_panel(kwargs.get("paneTab"))
+    return _PANEL
+
+
+def onActivateInterface():
+    if _PANEL is not None and hasattr(_PANEL, "on_activate"):
+        _PANEL.on_activate(kwargs.get("paneTab"))
+
+
+def onDeactivateInterface():
+    if _PANEL is not None and hasattr(_PANEL, "on_deactivate"):
+        _PANEL.on_deactivate()
+
+
+def onDestroyInterface():
+    global _PANEL
+    if _PANEL is not None and hasattr(_PANEL, "on_destroy"):
+        _PANEL.on_destroy()
+    _PANEL = None
+
+
+def onNodePathChanged(node):
+    if _PANEL is not None and hasattr(_PANEL, "on_node_path_changed"):
+        _PANEL.on_node_path_changed(node)
+]]></script>
+    <includeInToolbarMenu menu_position="200" create_separator="false"/>
+    <includeInPaneTabMenu menu_position="650" create_separator="false"/>
+    <help><![CDATA[= Web Export Panel =
+
+Side-by-side loss report inspector and publisher for Solaris stages (USD Folder, glTF, X3D, and USDZ).
+
+* Follow any LOP node via the navigation bar or click **Use Selected**.
+* Click **Check** for a read-only loss report across all selected formats.
+* Click **Export** to write the output folder and files when nothing blocks (FIX FIRST writes nothing).
+* Click **Preview** to start the local COOP/COEP viewer server and open the exported stage in the browser.
+]]></help>
+  </interface>
+</pythonPanelDocument>

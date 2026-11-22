@@ -44,16 +44,33 @@
   <script type="module">
     import * as THREE from "three";
     import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
-    // ?model=/fixtures/stage-flat/hero.glb  (the exporter's own output)
-    const modelUrl = new URL(new URLSearchParams(location.search).get("model") || "/fixtures/stage-flat/hero.glb",
-                             location.href).href;
-    const report = { url: modelUrl, revision: THREE.REVISION, ready: false, errors: [],
+    const report = { url: null, revision: THREE.REVISION, ready: false, errors: [],
                      meshes: 0, instanced: 0, triangles: 0, lights: 0, cameras: 0, materials: 0,
                      extensions: [], title: null };
     window.__gltf = report;
     addEventListener("error", (e) => report.errors.push(String(e.message || e)));
     addEventListener("unhandledrejection", (e) => report.errors.push(String(e.reason?.message || e.reason)));
+
+    const status = document.getElementById("status");
+    // ?model=/fixtures/stage-flat/hero.glb  (must be same-origin under /fixtures/ or /stages/)
+    const rawModel = new URLSearchParams(location.search).get("model") || "/fixtures/stage-flat/hero.glb";
+    let modelUrl;
+    try {
+      const u = new URL(rawModel, location.href);
+      if (u.origin !== location.origin || !/^\/(fixtures|stages)\//.test(u.pathname)) {
+        throw new Error(`blocked model URL (must be same-origin under /fixtures/ or /stages/): ${rawModel}`);
+      }
+      modelUrl = u.href;
+      report.url = modelUrl;
+    } catch (e) {
+      report.errors.push(String(e.message || e));
+      status.textContent = String(e.message || e);
+      report.ready = true;
+      throw e;
+    }
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -63,46 +80,101 @@
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x101010);
-    const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.05, 500);
+    // MIT neutral PMREM IBL so metallic PBR surfaces reflect instead of rendering black.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envRT = pmrem.fromScene(new RoomEnvironment(), 0.04);
+    scene.environment = envRT.texture;
+    scene.environmentIntensity = 0.65;
+    pmrem.dispose();
 
-    const status = document.getElementById("status");
+    const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.05, 500);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
     const loader = new GLTFLoader();
+    let usdCam = null;
+    let mixer = null;
+
+    function syncCamera() {
+      if (!usdCam) return;
+      usdCam.updateWorldMatrix(true, false);
+      usdCam.matrixWorld.decompose(camera.position, camera.quaternion, new THREE.Vector3());
+      camera.near = usdCam.near; camera.far = usdCam.far;
+      camera.aspect = innerWidth / innerHeight;
+      // Keep the authored frame fully visible on narrow screens, exactly as main.js does.
+      const a = camera.aspect, tanV = Math.tan(THREE.MathUtils.degToRad(usdCam.fov) / 2);
+      const authoredAspect = usdCam.aspect > 0 ? usdCam.aspect : a;
+      camera.fov = a >= authoredAspect
+        ? usdCam.fov
+        : THREE.MathUtils.radToDeg(2 * Math.atan(tanV * authoredAspect / a));
+      camera.updateProjectionMatrix();
+      report.cameraUsed = true;
+      report.cameraFov = +camera.fov.toFixed(2);
+      report.cameraPosition = [+camera.position.x.toFixed(2), +camera.position.y.toFixed(2),
+                               +camera.position.z.toFixed(2)];
+    }
 
     try {
       const gltf = await loader.loadAsync(modelUrl);
       scene.add(gltf.scene);
       const extras = gltf.scene.userData?.web || gltf.userData?.web || null;
-      report.title = gltf.scene.userData?.web?.title || null;
+      report.title = extras?.title || null;
+      if (report.title) {
+        document.title = report.title;
+        document.querySelector("#hud h1").textContent = report.title;
+      }
+      if (typeof extras?.exposureOffset === "number" && Number.isFinite(extras.exposureOffset)) {
+        renderer.toneMappingExposure = 2 ** extras.exposureOffset;
+      }
       report.extensions = gltf.parser?.json?.extensionsUsed || [];
 
-      let box = new THREE.Box3(), materials = new Set();
+      const box = new THREE.Box3(), materials = new Set();
       gltf.scene.traverse((o) => {
         if (o.isInstancedMesh) report.instanced += o.count;
         else if (o.isMesh) report.meshes += 1;
         if (o.isMesh) {
           const m = Array.isArray(o.material) ? o.material[0] : o.material;
           if (m) materials.add(m.uuid);
-          if (o.geometry?.index) report.triangles += o.geometry.index.count / 3;
-          else if (o.geometry?.attributes?.position) report.triangles += o.geometry.attributes.position.count / 3;
+          const mult = o.isInstancedMesh ? o.count : 1;
+          if (o.geometry?.index) report.triangles += (o.geometry.index.count / 3) * mult;
+          else if (o.geometry?.attributes?.position) report.triangles += (o.geometry.attributes.position.count / 3) * mult;
         }
         if (o.isLight) report.lights += 1;
         if (o.isCamera) report.cameras += 1;
       });
       report.materials = materials.size;
-      if (report.cameras === 0) {  // KHR cameras become nodes; add a fallback so the scene is lit and framed
+
+      // B4: frame from the exported perspective camera when present; fallback to bounds otherwise.
+      gltf.scene.traverse((o) => { if (!usdCam && o.isPerspectiveCamera) usdCam = o; });
+      if (usdCam) {
+        syncCamera();
+        box.setFromObject(gltf.scene);
+        const dist = !box.isEmpty()
+          ? Math.max(0.5, camera.position.distanceTo(box.getCenter(new THREE.Vector3())))
+          : 4;
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+        controls.target.copy(camera.position).addScaledVector(forward, dist);
+        controls.update();
+      } else {
         box.setFromObject(gltf.scene);
         if (!box.isEmpty()) {
           const size = box.getSize(new THREE.Vector3()).length();
           const centre = box.getCenter(new THREE.Vector3());
           camera.position.copy(centre).add(new THREE.Vector3(0.7, 0.5, 1).normalize().multiplyScalar(size * 0.9));
           camera.lookAt(centre);
+          controls.target.copy(centre);
           camera.near = Math.max(0.01, size / 500); camera.far = size * 10;
           camera.updateProjectionMatrix();
+          controls.update();
         }
       }
-      if (report.lights === 0) {  // a glTF with no punctual lights gets a neutral studio so it is visible
+      if (report.lights === 0) {
         const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 1.2); scene.add(hemi);
         const key = new THREE.DirectionalLight(0xffffff, 2.0); key.position.set(3, 5, 4); scene.add(key);
+      }
+      if (gltf.animations && gltf.animations.length > 0) {
+        mixer = new THREE.AnimationMixer(gltf.scene);
+        for (const clip of gltf.animations) mixer.clipAction(clip).play();
       }
       renderer.render(scene, camera);
       report.ready = true;
@@ -116,10 +188,20 @@
 
     addEventListener("resize", () => {
       renderer.setSize(innerWidth, innerHeight);
-      camera.aspect = innerWidth / innerHeight;
-      camera.updateProjectionMatrix();
+      if (usdCam) {
+        syncCamera();
+      } else {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+      }
     });
-    renderer.setAnimationLoop(() => renderer.render(scene, camera));
+    let last = performance.now();
+    renderer.setAnimationLoop((now) => {
+      const dt = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
+      if (mixer) mixer.update(dt);
+      controls.update();
+      renderer.render(scene, camera);
+    });
   </script>
 </body>
 </html>

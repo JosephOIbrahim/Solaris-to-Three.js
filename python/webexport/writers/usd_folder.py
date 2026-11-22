@@ -96,7 +96,7 @@ def _drive_label(drive: str) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "_", drive).strip("_") or "root"
 
 
-def plan_folder(root: Sdf.Layer) -> FolderPlan:
+def plan_folder(root: Sdf.Layer, resolver_context=None) -> FolderPlan:
     """Work out the folder: every file, where it goes, every path rewrite, and what can't be placed."""
     plan = FolderPlan()
     if root.anonymous or not root.realPath:
@@ -118,9 +118,15 @@ def plan_folder(root: Sdf.Layer) -> FolderPlan:
         entry[1] = entry[1] or rewrite
         return key
 
-    layers, assets, unresolved = UsdUtils.ComputeAllDependencies(Sdf.AssetPath(root.identifier))
+    if resolver_context is not None:
+        with Ar.ResolverContextBinder(resolver_context):
+            layers, assets, unresolved = UsdUtils.ComputeAllDependencies(Sdf.AssetPath(root.identifier))
+    else:
+        layers, assets, unresolved = UsdUtils.ComputeAllDependencies(Sdf.AssetPath(root.identifier))
     to_read = []
     for layer in layers:
+        if Ar.IsPackageRelativePath(layer.identifier):
+            continue  # inner layer of a .usdz package: outer package is handled as an asset
         if layer.anonymous or not layer.realPath:
             plan.problems.append(Problem("unsaved", layer.identifier, "", layer.identifier))
             continue
@@ -169,9 +175,18 @@ def plan_folder(root: Sdf.Layer) -> FolderPlan:
     by_drive: dict[str, list] = {}
     for key, real in outside:
         by_drive.setdefault(os.path.splitdrive(real)[0].lower(), []).append((key, real))
+    used_drive_labels: set[str] = set()
     for drive, group in sorted(by_drive.items()):
         base = os.path.commonpath([os.path.dirname(real) for _key, real in group])
-        prefix = plan.outside if len(by_drive) == 1 else f"{plan.outside}/{_drive_label(drive)}"
+        if len(by_drive) == 1:
+            prefix = plan.outside
+        else:
+            label = _drive_label(drive)
+            cand, idx = label, 2
+            while cand.lower() in used_drive_labels:
+                cand, idx = f"{label}_{idx}", idx + 1
+            used_drive_labels.add(cand.lower())
+            prefix = f"{plan.outside}/{cand}"
         for key, real in group:
             dest[key] = f"{prefix}/{os.path.relpath(real, base).replace(os.sep, '/')}"
 
@@ -288,14 +303,12 @@ class UsdFolderWriter:
     def write(self, stage: Usd.Stage, inv, out_dir: Path, settings) -> ExportResult:
         self._check_stage(stage)
         out_dir = Path(out_dir)
-        plan = self.plan or plan_folder(stage.GetRootLayer())
+        plan = self.plan or plan_folder(stage.GetRootLayer(), stage.GetPathResolverContext())
         report = self.report
         if report is None:  # principle 1: the report exists before anything is written
             from ..profiles.usd_folder import UsdFolderProfile  # here, not at the top: the profile imports this module
             profile = UsdFolderProfile(stage=stage, plan=plan, jev_on=self.jev_on)
             report = LossReport.from_items(FORMAT, profile.assess(inv), jev_note=profile.jev_note)
-        if report is not self.report:
-            self.root = stage.GetRootLayer().identifier  # this writer's report is now about this stage
         entry = out_dir / (plan.root or f"{out_dir.name}.usda")
         if any(i.severity == "blocks" for i in report.items):
             return ExportResult(FORMAT, entry, [], 0, report, False)  # writes nothing, not even the folder
