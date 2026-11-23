@@ -410,6 +410,20 @@ def build_stylesheet() -> str:
         color: {p['text']};
         spacing: 6px;
     }}
+    QCheckBox::indicator {{
+        width: 14px;
+        height: 14px;
+        border: 1px solid {p['border']};
+        border-radius: 3px;
+        background-color: {p['ground']};
+    }}
+    QCheckBox::indicator:hover {{
+        border-color: {p['muted']};
+    }}
+    QCheckBox::indicator:checked {{
+        background-color: {p['vermilion']};
+        border-color: {p['vermilion']};
+    }}
     QTabWidget::pane {{
         border: 1px solid {p['border']};
         border-radius: 6px;

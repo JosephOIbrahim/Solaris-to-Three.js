@@ -153,8 +153,19 @@ class DoctorAndPackagerTests(unittest.TestCase):
 
 class PanelModelTests(unittest.TestCase):
     def test_model_imports_without_hou_or_qt_and_computes_matrix_and_verdicts(self):
-        self.assertNotIn("PySide6", sys.modules)
-        self.assertNotIn("PySide2", sys.modules)
+        import ast
+
+        # Static import-hygiene proof (works under both plain Python and hython, where PySide6 may be preloaded).
+        model_src = (ROOT / "python" / "webexport" / "panel" / "model.py").read_text(encoding="utf-8")
+        tree = ast.parse(model_src)
+        imported = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported.update(alias.name.split(".", 1)[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported.add(node.module.split(".", 1)[0])
+        self.assertTrue(imported.isdisjoint({"hou", "PySide6", "PySide2", "PyQt5", "PyQt6"}), imported)
+        self.assertNotIn("webexport.panel.widget", sys.modules)
         self.assertIn("QWidget#WebExportPanel", panel.build_stylesheet())
 
         r_usd = LossReport.from_items("usd_folder", [

@@ -97,7 +97,7 @@ class _FormatCard(QtWidgets.QFrame):
         top = QtWidgets.QHBoxLayout()
         top.setSpacing(6)
         self.name_label = QtWidgets.QLabel(f"{meta['label']}  {meta['ext']}".strip())
-        self.name_label.setStyleSheet("font-weight: 600; font-size: 12px;")
+        self.name_label.setStyleSheet(f"color: {PALETTE['text']}; font-weight: 600; font-size: 12px;")
         self.verdict_label = QtWidgets.QLabel("IDLE")
         self.verdict_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         _apply_pill_style(self.verdict_label, *VERDICT_STYLE["IDLE"])
@@ -364,10 +364,10 @@ class WebExportPanel(QtWidgets.QWidget):
         self.matrix_table.setAlternatingRowColors(True)
         self.matrix_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.matrix_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.matrix_table.setWordWrap(True)
         self.matrix_table.verticalHeader().setVisible(False)
         headers = ["Feature"] + [FORMAT_META[f]["label"] for f in api.FORMATS]
         self.matrix_table.setHorizontalHeaderLabels(headers)
-        self.matrix_table.horizontalHeader().setStretchLastSection(True)
         self.tabs.addTab(self.matrix_table, "Side-by-Side Matrix")
 
         # Tab 2: Detailed Findings Tree
@@ -748,8 +748,13 @@ class WebExportPanel(QtWidgets.QWidget):
                     _, fg, bg = SEVERITY_STYLE[sev]
                     cell.setForeground(QtGui.QColor(fg))
                     cell.setBackground(QtGui.QColor(bg))
+                cell.setToolTip(text)
                 self.matrix_table.setItem(r_idx, c_idx, cell)
-        self.matrix_table.resizeColumnsToContents()
+        header = self.matrix_table.horizontalHeader()
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        for c_idx in range(1, 1 + len(fmt_cols)):
+            header.setSectionResizeMode(c_idx, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self.matrix_table.resizeRowsToContents()
 
     def _populate_findings_tree(self) -> None:
         self.findings_tree.clear()

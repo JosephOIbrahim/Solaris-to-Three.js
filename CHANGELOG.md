@@ -4,6 +4,21 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-23
+
+Visual polish for the Houdini 22 PySide6 Python Panel, `hython` test-suite compatibility, and beta-testing onboarding guide.
+
+### Added
+
+- `docs/beta-testing.md`, a five-minute beta tester quickstart and feedback checklist for Houdini 22 (install/doctor steps, target test areas including Karma/Solaris T03 and Quick Look, and one-click JSON diagnostics).
+
+### Fixed
+
+- Fixed dark-on-dark format card headers in `python/webexport/panel/widget.py` by setting explicit parchment text color (`#DAD6CF`).
+- Fixed Side-by-Side Matrix horizontal clipping in `python/webexport/panel/widget.py` by stretching all four format columns (`USD Folder`, `glTF`, `X3D`, `USDZ`) with word-wrap, row auto-sizing, and cell tooltips so all formats display together without horizontal scrolling.
+- Styled `QCheckBox::indicator` in `python/webexport/panel/model.py` with the dark ink background and vermilion (`#E25B3F`) checked state to match the house palette.
+- Fixed `tests/test_houdini_ui.py` to validate `panel/model.py` Qt/Houdini import isolation via AST inspection so the full 207-test suite passes cleanly under both plain Python and Houdini 22 `hython` (which preloads `PySide6`).
+
 ## [1.0.0] - 2026-11-22
 
 First production release for launching **Solaris-to-Three.js** directly from Houdini 22. All core export modules, Houdini 22 integration (HDA, top-level menu, custom shelf, PySide6 Python Panel), HTTP server, glTF player, X3D player, and `USDLoader` (`?route=js`) ship under MIT; the optional Needle Hydra WASM route (`@needle-tools/usd`, installed via `npm ci` and excluded from release zips) remains PolyForm Noncommercial for local evaluation only.
@@ -247,7 +262,8 @@ The first release: the working prototype, organised into a repository.
 - A MaterialX mesh without UVs rendered black; the fixture gained UVs and the census flags the case.
 - Script paths broke on Windows; they use `fileURLToPath` now.
 
-[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v1.0.1
 [1.0.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v1.0.0
 [0.7.0]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.7.0
 [0.6.10]: https://github.com/JosephOIbrahim/Solaris-to-Three.js/releases/tag/v0.6.10
